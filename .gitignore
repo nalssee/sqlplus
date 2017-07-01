@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+/*.egg-info
+/*.egg
+/dist/
+.vscode/
+tags
+build/
+venv/
+*.whl
+sqlplus/tests/workspace
