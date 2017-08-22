@@ -3,15 +3,26 @@ Functions that are not specific to "Row" objects
 """
 import random
 import string
-import re
 import fileinput
 
 import concurrent.futures
 import multiprocessing as mp
-from itertools import chain, zip_longest
+from itertools import chain, zip_longest, accumulate
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+
+def chunks(seq, ps):
+    "ps: int or list of numbers (ratios for chunks)"
+    seq = list(seq)
+    if isinstance(ps, int):
+        ps = [1] * ps
+    n = len(seq)
+    tot = sum(ps)
+    ps1 = list(round(p * n / tot) for p in accumulate(ps))
+    for a, b in zip([0] + ps1, ps1[:-1] + [n]):
+        yield seq[a:b]
 
 
 def read_date(date, infmt, outfmt="%Y%m%d"):
@@ -33,7 +44,7 @@ def pmap(fn, *args, max_workers=None):
         tempstr = random_string()
         with concurrent.futures.ProcessPoolExecutor() as executor:
             for gs in grouper(zip(*args), max_workers, tempstr):
-                gs = (x for x in gs if x != tempstr))
+                gs = (x for x in gs if x != tempstr)
                 yield from executor.map(fn, *zip(*gs))
 
 
@@ -77,17 +88,6 @@ def random_string(nchars=20):
                    for _ in range(nchars))
 
 
-def camel2snake(name):
-    """
-    Args:
-        name (str): camelCase
-    Returns:
-        str: snake_case
-    """
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-
 def peek_first(seq):
     """
     Note:
@@ -107,26 +107,22 @@ def peek_first(seq):
 def listify(x):
     """
     Example:
-        >>> listify('a b c')
-        ['a', 'b', 'c']
-
         >>> listify('a, b, c')
         ['a', 'b', 'c']
 
         >>> listify(3)
         [3]
+
+        >>> listify([1, 2])
+        [1, 2]
     """
-    if isinstance(x, str):
-        if ',' in x:
-            return [x1.strip() for x1 in x.split(',')]
-        else:
-            return x.split()
-    elif isinstance(x, list):
-        return x
-    elif isinstance(x, tuple) or isinstance(x, dict) or isinstance(x, set):
-        return list(x)
-    else:
-        return [x]
+    try:
+        return [x1.strip() for x1 in x.split(',')]
+    except AttributeError:
+        try:
+            return list(iter(x))
+        except TypeError:
+            return [x]
 
 
 # If the return value is True it is converted to 1 or 0 in sqlite3
@@ -136,25 +132,27 @@ def isnum(*xs):
         for x in xs:
             float(x)
         return True
-    except ValueError:
+    except:
         return False
 
 
 def ymd(step, fmt='%Y%m%d'):
     def add_datetime(n, unit):
         def fn(date):
-            d1 = datetime.strptime(str(date), fmt) + relativedelta(*{unit: n})
+            d1 = datetime.strptime(str(date), fmt) + relativedelta(**{unit: n})
             d2 = d1.strftime(fmt)
             return int(d2) if isinstance(date, int) else d2
         return fn
 
     if isinstance(step, str):
         try:
-            a, b = listify(step)
-            a, b = int(a), b.lower()
+            n, unit = step.split()
+            n, unit = int(n), unit.lower()
+            if not unit.endswith('s'):
+                unit += 's'
         except:
             raise ValueError(f"Invalid format {step}")
-        return add_datetime(a, b)
+        return add_datetime(n, unit)
 
     elif isinstance(step, int):
         return lambda date: date + step

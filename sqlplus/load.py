@@ -15,7 +15,7 @@ __all__ = ['fnguide']
 if os.name == 'nt':
     locale.setlocale(locale.LC_ALL, 'english_USA')
 elif os.name == 'posix':
-    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8' )
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 def fnguide(filename, cols=None):
@@ -59,7 +59,8 @@ def extract_ids(xs):
     first_ids = None
     for _, ss in groupby(xs[1:], lambda x: x):
         ss = list(ss)
-        if not first_ids: first_ids = ss
+        if not first_ids:
+            first_ids = ss
         # it could be just an empty string
         if ss[0].strip():
             result.append(ss[0].strip())
