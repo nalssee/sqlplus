@@ -6,6 +6,4 @@ __pycache__
 .vscode/
 tags
 build/
-venv/
-*.whl
 sample.db
