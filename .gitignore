@@ -6,4 +6,4 @@ __pycache__
 .vscode/
 tags
 build/
-sample.db
+**/sample.db
