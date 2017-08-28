@@ -14,7 +14,11 @@ import inspect
 import platform
 # import operator
 import numpy as np
+import matplotlib
+# You need to specify in macos somehow
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 import statistics as st
 import pandas as pd
 from pandas.plotting import scatter_matrix
@@ -27,13 +31,13 @@ from sas7bdat import SAS7BDAT
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, pmap
+    parse_model, random_string, pmap, breakpoints
 
-# pandas raises warnings because statsmodels is lazy
+# pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
 import statsmodels.api as sm
 
-__all__ = ['dbopen', 'Row', 'Rows', 'Box', 'inf', 'epsilon']
+__all__ = ['dbopen', 'Row', 'Rows']
 
 
 WORKSPACE = ''
@@ -405,28 +409,20 @@ class Rows:
             seq = _safe_values(self.rows, cols)
             return pd.DataFrame(list(seq), columns=cols)
 
+    def pn(self, col, bps, pncol=None):
+        "Assign portfolio number using the given breakpoints"
+        def loc(x, bps):
+            for i, b in enumerate(bps):
+                if x < b:
+                    return i + 1
+            return len(bps) + 1
 
-class Box:
-    """We need something very simple and flexible for displaying
-    list of lists
-    """
-    def __init__(self, lines):
-        self.lines = lines
-
-    def show(self, file=sys.stdout, excel=False, encoding=None):
-        _csv(self.lines, file, None, encoding)
-        if excel:
-            _open_excel(self.lines, file, None, encoding)
-
-    def __add__(self, xs):
-        "xs is a list"
-        self.lines += [xs]
+        if not pncol:
+            pncol = 'pn_' + col
+        self[pncol] = ''
+        for r in self.rows:
+            r[pncol] = loc(r[col], bps)
         return self
-
-    def append(self, item):
-        self.lines[-1].append(item)
-        return self
-    # need some tools to build a Box easily
 
 
 class SQLPlus:
@@ -958,7 +954,7 @@ def _open_excel(rows, file, cols, encoding):
             elif platform.system() == 'Linux':
                 cmd = 'libreoffice'
             elif os.name == 'posix':
-                cmd = 'open -a "Microsoft Excel"'
+                cmd = 'open -a numbers'
             try:
                 os.system(f'{cmd} {filepath}')
             except:

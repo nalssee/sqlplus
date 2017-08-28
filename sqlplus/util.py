@@ -4,6 +4,7 @@ Functions that are not specific to "Row" objects
 import random
 import string
 import fileinput
+import pandas as pd
 
 import concurrent.futures
 import multiprocessing as mp
@@ -13,16 +14,10 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def chunks(seq, ps):
-    "ps: int or list of numbers (ratios for chunks)"
-    seq = list(seq)
-    if isinstance(ps, int):
-        ps = [1] * ps
-    n = len(seq)
-    tot = sum(ps)
-    ps1 = list(round(p * n / tot) for p in accumulate(ps))
-    for a, b in zip([0] + ps1, ps1[:-1] + [n]):
-        yield seq[a:b]
+def breakpoints(seq, percentiles):
+    "Breakpoints from percentages"
+    bs = pd.Series(seq).describe(percentiles)
+    return [bs[str(round(p * 100)) + '%'] for p in percentiles]
 
 
 def read_date(date, infmt, outfmt="%Y%m%d"):

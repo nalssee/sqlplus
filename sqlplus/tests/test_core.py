@@ -7,7 +7,7 @@ PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
 from sqlplus.core import Row, Rows, dbopen
-from sqlplus.util import ymd, isnum, read_date, grouper
+from sqlplus.util import ymd, isnum, read_date, grouper, breakpoints
 from sqlplus import core
 
 
@@ -264,7 +264,6 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
             rs.show(file='sample.csv')
-
             with dbopen(':memory:') as q1:
                 q1.save(rs, 'foo')
                 self.assertEqual(len(q1.rows('foo')), 91)
@@ -274,6 +273,15 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
+
+    def test_pn(self):
+        with dbopen('sample.db') as q:
+            rs = q.rows('orderdetails')
+            bps = breakpoints(rs['quantity'], [0.3, 0.7])
+            rs.pn('quantity', bps)
+            self.assertEqual(len(rs.where('pn_quantity=1')), 132)
+            self.assertEqual(len(rs.where('pn_quantity=2')), 214)
+            self.assertEqual(len(rs.where('pn_quantity=3')), 172)
 
 
 # This should be defined in 'main' if you want to exploit multiple cores
@@ -467,6 +475,3 @@ if __name__ == "__main__":
                     q.save(f)
 
     unittest.main()
-
-
-
