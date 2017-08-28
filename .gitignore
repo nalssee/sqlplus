@@ -8,3 +8,4 @@ tags
 build/
 venv/
 *.whl
+sqlplus/tests/workspace/sample.db
