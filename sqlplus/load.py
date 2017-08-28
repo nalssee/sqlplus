@@ -1,7 +1,9 @@
+# TODO: This lib works but
+# not cleaned up and not tested properly
+
 import locale
 import os
 import csv
-
 
 from itertools import groupby
 

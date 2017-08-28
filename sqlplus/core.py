@@ -946,14 +946,19 @@ def _get_name_from_query(query):
 
 
 def _open_excel(rows, file, cols, encoding):
+    # TODO: Creates an unnecessary temporary csv file
+    # Take care of it. If you think it bugs you
     def _open(file):
         filepath = os.path.join(WORKSPACE, file)
         if os.path.isfile(filepath):
             if os.name == 'nt':
                 cmd = 'start excel'
             elif platform.system() == 'Linux':
+                # Libreoffice calc is the only viable option for linux
                 cmd = 'libreoffice'
             elif os.name == 'posix':
+                # For OS X, use Numbers, not Excel. 
+                # It is free and good enough for this purpose.
                 cmd = 'open -a numbers'
             try:
                 os.system(f'{cmd} {filepath}')
