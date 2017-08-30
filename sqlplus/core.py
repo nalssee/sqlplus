@@ -392,7 +392,7 @@ class Rows:
             if file:
                 _csv(rows, file, cols, encoding)
             if excel:
-                _open_excel(rows, file, cols, encoding)
+                _open_excel(rows, file, cols, encoding, excel)
         else:
             _show(self.rows, n or 10, cols)
 
@@ -575,7 +575,7 @@ class SQLPlus:
         rows = self.reel(tname, cols=cols, where=where, order=order)
         if not file:
             if excel:
-                _open_excel(rows, None, cols, encoding)
+                _open_excel(rows, None, cols, encoding, excel)
             else:
                 _show(rows, n or 10, cols)
         else:
@@ -584,7 +584,7 @@ class SQLPlus:
             rows = islice(rows, n) if isinstance(n, int) and n > 0 else rows
             _csv(rows, file, cols, encoding)
             if excel:
-                _open_excel(rows, file, cols, encoding)
+                _open_excel(rows, file, cols, encoding, excel)
 
     # register function to sql
     def register(self, fn):
@@ -945,25 +945,28 @@ def _get_name_from_query(query):
         return None
 
 
-def _open_excel(rows, file, cols, encoding):
+def _open_excel(rows, file, cols, encoding, excel):
     # TODO: Creates an unnecessary temporary csv file
     # Take care of it. If you think it bugs you
     def _open(file):
         filepath = os.path.join(WORKSPACE, file)
         if os.path.isfile(filepath):
             if os.name == 'nt':
-                cmd = 'start excel'
+                excel = excel if isinstance(excel, str) else 'excel'
+                cmd = f'start {excel}'
             elif platform.system() == 'Linux':
                 # Libreoffice calc is the only viable option for linux
-                cmd = 'libreoffice'
+                excel = excel if isinstance(excel, str) else 'libreoffice'
+                cmd = excel
             elif os.name == 'posix':
-                # For OS X, use Numbers, not Excel. 
+                # For OS X, use Numbers, not Excel.
                 # It is free and good enough for this purpose.
-                cmd = 'open -a numbers'
+                excel = excel if isinstance(excel, str) else 'numbers'
+                cmd = f'open -a {excel}'
             try:
                 os.system(f'{cmd} {filepath}')
             except:
-                print("Excel not found")
+                print(f"{excel} not found")
         else:
             print(f'File does not exist {filepath}')
 
