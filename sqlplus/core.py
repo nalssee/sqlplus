@@ -31,7 +31,7 @@ from sas7bdat import SAS7BDAT
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, pmap, breakpoints
+    parse_model, random_string, pmap
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -952,17 +952,17 @@ def _open_excel(rows, file, cols, encoding, excel):
         filepath = os.path.join(WORKSPACE, file)
         if os.path.isfile(filepath):
             if os.name == 'nt':
-                excel = excel if isinstance(excel, str) else 'excel'
-                cmd = f'start {excel}'
+                excel1 = excel if isinstance(excel, str) else 'excel'
+                cmd = f'start {excel1}'
             elif platform.system() == 'Linux':
                 # Libreoffice calc is the only viable option for linux
-                excel = excel if isinstance(excel, str) else 'libreoffice'
-                cmd = excel
+                excel1 = excel if isinstance(excel, str) else 'libreoffice'
+                cmd = excel1
             elif os.name == 'posix':
                 # For OS X, use Numbers, not Excel.
                 # It is free and good enough for this purpose.
-                excel = excel if isinstance(excel, str) else 'numbers'
-                cmd = f'open -a {excel}'
+                excel1 = excel if isinstance(excel, str) else 'numbers'
+                cmd = f'open -a {excel1}'
             try:
                 os.system(f'{cmd} {filepath}')
             except:
