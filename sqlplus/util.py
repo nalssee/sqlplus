@@ -8,7 +8,7 @@ import pandas as pd
 
 import concurrent.futures
 import multiprocessing as mp
-from itertools import chain, zip_longest, accumulate
+from itertools import chain, zip_longest
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
