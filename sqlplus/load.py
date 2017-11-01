@@ -30,14 +30,13 @@ def fnguide(filename, cols=None):
         # checks if the number of 'cols' corresponds with the file
         line1 = next(reader)
         n, ids = extract_ids(line1)
-
         # 5줄 더 버리고
         for _ in range(5):
             next(reader)
         # cols given
         if cols:
             cols = listify(cols)
-            assert len(cols) == n, f"Invalid cols given, {cols}"
+            assert len(cols) == n, f"Invalid cols given, {cols}, {n}"
             for line in csv.reader(f):
                 for s, vs in zip(ids, grouper(line[1:], n)):
                     # 1,232,392 => interpret
