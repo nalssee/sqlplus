@@ -27,7 +27,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, repeat
-from sas7bdat import SAS7BDAT
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
@@ -264,28 +263,6 @@ class Rows:
                                   if obj.evaluate(r._ordered_dict)])
         return self._newrows([r for r in self if pred(r)])
 
-    def summary(self, cols=None, percentile=None):
-        def fill(xs, cols):
-            d = {}
-            for a, b in zip(xs.index, xs):
-                d[a] = b
-
-            result = []
-            for c in cols:
-                if c not in d:
-                    result.append(float('nan'))
-                else:
-                    result.append(d[c])
-            return result
-
-        percentile = percentile \
-            or [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
-        df = self.df(cols)
-        desc = df.describe(percentile, include='all')
-        desc.loc['skewness'] = fill(df.skew(), desc.columns)
-        desc.loc['kurtosis'] = fill(df.kurtosis(), desc.columns)
-        return self._newrows(_df_reel(desc, True))
-
     def corr(self, cols=None):
         "Lower left: Pearson, Upper right: Spearman"
         cols = cols or self[0].columns
@@ -469,14 +446,6 @@ class SQLPlus:
         # load some user-defined functions from helpers.py
         self.conn.create_function('isnum', -1, isnum)
 
-
-
-
-    # Limited SQL is allowed cols, order, and group are
-    # all just a list of column names
-    # no other SQL attages are allowed
-
-
     def read(self, tname, cols=None, where=None, order=None,
              group=None, roll=None):
         """Generates a sequence of rows from a query.
@@ -515,15 +484,9 @@ class SQLPlus:
                 else:
                     yield Rows(ls)
 
-    def show(self, tname, n=None, cols=None, where=None, order=None,
-             file=None, excel=False, encoding='utf-8'):
-
-    def write(self, seq, name=None, cols=None, fn=None,
-             pkeys=None, encoding='utf-8'):
-
-    def apply(self, fn, tname, args=None, name=None,
-              cols=None, where=None, order=None,
-              group=None, roll=None, pkeys=None, max_workers=None):
+    def write(self, seq, name, cols=None, pkeys=None):
+        """
+        """
         def flatten(seq):
             for x in seq:
                 try:
@@ -531,46 +494,14 @@ class SQLPlus:
                 except:
                     yield x
 
-        name1 = name or getattr(fn, '__name__')
-        seq = self.reel(tname, cols, where, order, group, roll)
-        args1 = (repeat(a) for a in (args or []))
-        if not (group or roll):
-            # if not group work, using multiprocssing is a bad idea
-            max_workers = 1
-        seq1 = pmap(fn, seq, *args1, max_workers=max_workers)
-        self.save((x for x in flatten(seq1) if isinstance(x, Row)),
-                  name1, pkeys=pkeys)
-
-    def write(self, seq, )
-
-    def save(self, fname, name=None, cols=None, fn=None,
-             pkeys=None, encoding='utf-8'):
-
-        # fname can be either a filename (csv or sas) or a sequence of Row(s)
-        if isinstance(fname, str):
-            if fname.endswith('.csv'):
-                name, rows = name or fname[:-4], _csv_reel(fname, encoding)
-            elif fname.endswith('.sas7bdat'):
-                name, rows = name or fname[:-9], _sas_reel(fname)
-            elif fname.endswith('.xlsx'):
-                name, rows = name or fname[:-5], _excel_reel(fname)
-            else:
-                raise ValueError(f'Unknonwn File Extension {fname}')
-        # Then it should be a sequence of Rows
-        else:
-            rows = fname
-
-        if not name:
-            raise ValueError("Table name required")
-
         temp_name = 'table_' + random_string(10)
-        rows1 = (fn(r) for r in rows) if fn else rows
+        seq1 = (r for r in flatten(seq))
 
-        row0, rows2 = peek_first(rows1)
+        row0, seq2 = peek_first(seq1)
         # if cols not specified row0 must be an instance of Row
         cols = listify(cols) if cols else row0.columns
-        seq_values = _safe_values(rows2, cols) \
-            if isinstance(row0, Row) else rows2
+        seq_values = _safe_values(seq2, cols) \
+            if isinstance(row0, Row) else seq2
 
         pkeys = listify(pkeys) if pkeys else None
 
@@ -581,26 +512,6 @@ class SQLPlus:
         finally:
             self.rename(temp_name, name)
             tempcur.close()
-
-
-    # Be careful so that you don't overwrite the file
-    def show(self, tname, n=None, cols=None, where=None, order=None,
-             file=None, excel=False, encoding='utf-8'):
-
-        "Printing to a screen or saving to a file "
-        rows = self.reel(tname, cols=cols, where=where, order=order)
-        if not file:
-            if excel:
-                _open_excel(rows, None, cols, encoding, excel)
-            else:
-                _show(rows, n or 10, cols)
-        else:
-            file = file if isinstance(file, str) else sys.stdout
-            # show as much if possible
-            rows = islice(rows, n) if isinstance(n, int) and n > 0 else rows
-            _csv(rows, file, cols, encoding)
-            if excel:
-                _open_excel(rows, file, cols, encoding, excel)
 
     # register function to sql
     def register(self, fn):
@@ -691,7 +602,7 @@ class SQLPlus:
         return self._cursor.execute(query)
 
     def rows(self, tname, cols=None, where=None, order=None):
-        return Rows(self.reel(tname, cols, where, order))
+        return Rows(self.read(tname, cols, where, order))
 
     def df(self, tname, cols=None, where=None, order=None):
         return self.rows(tname, cols, where, order).df(cols)
@@ -805,7 +716,6 @@ class SQLPlus:
             for (t0, _, _), (t1, _, _) in zip(tinfos, tcols):
                 if t0 != t1:
                     self.drop(t1)
-
 
 
 def _safe_values(rows, cols):
@@ -1034,66 +944,3 @@ def _roll(seq, period, jump, keyfn, nextfn):
         if len(result) > 0:
             yield result
 
-
-# EVERY COLUMN IS A STRING!!!
-# Possible the messiest type of file
-def _csv_reel(csv_file, encoding):
-    "Loads well-formed csv file, 1 header line and the rest is data "
-    def is_empty_line(line):
-        """Tests if a list of strings is empty for example ["", ""] or []
-        """
-        return [x for x in line if x.strip() != ""] == []
-
-    with open(os.path.join(WORKSPACE, csv_file), encoding=encoding) as fin:
-        first_line = fin.readline()[:-1]
-        columns = listify(first_line)
-        ncol = len(columns)
-
-        # reader = csv.reader(fin)
-        # NULL byte error handling
-        reader = csv.reader(x.replace('\0', '') for x in fin)
-        for line_no, line in enumerate(reader, 2):
-            if len(line) != ncol:
-                if is_empty_line(line):
-                    continue
-                raise ValueError(
-                    """%s at line %s column count not matched %s != %s: %s
-                    """ % (csv_file, line_no, ncol, len(line), line))
-            row1 = Row()
-            for col, val in zip(columns, line):
-                row1[col] = val
-            yield row1
-
-
-def _sas_reel(sas_file):
-    filename = os.path.join(WORKSPACE, sas_file)
-    with SAS7BDAT(filename) as f:
-        reader = f.readlines()
-        # lower case
-        header = [x.lower() for x in next(reader)]
-        for line in reader:
-            r = Row()
-            for k, v in zip(header, line):
-                r[k] = v
-            yield r
-
-
-# this could be more complex but should it be?
-def _excel_reel(excel_file):
-    filename = os.path.join(WORKSPACE, excel_file)
-    # it's OK. Excel files are small
-    df = pd.read_excel(filename)
-    yield from _df_reel(df, False)
-
-
-# Might be exported later.
-def _df_reel(df, index=True):
-    cols = df.columns
-    c0 = '_'
-    for i, r in df.iterrows():
-        r0 = Row()
-        if index:
-            r0[c0] = i
-        for c, v in zip(cols, (r[c] for c in cols)):
-            r0[c] = v
-        yield r0

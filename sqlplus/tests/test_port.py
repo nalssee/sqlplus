@@ -1,4 +1,4 @@
-# 
+#
 import os
 import sys
 import unittest
@@ -17,6 +17,7 @@ from sqlplus.util import isnum,  \
     prepend_header, pmap, grouper, same, ymd, read_date, listify
 
 from sqlplus.load import fnguide
+
 
 def fib(n):
     if n < 2:
@@ -132,9 +133,9 @@ class Testdbopen(unittest.TestCase):
 
             if os.path.isfile(os.path.join('workspace', 'sample.csv')):
                 os.remove(os.path.join('workspace', 'sample.csv'))
-            
+
             Rows(first2group()).show(file='sample.csv')
-            
+
             self.assertTrue(os.path.isfile(os.path.join('workspace', 'sample.csv')))
             # each group contains 50 rows, hence 100
             c.save('sample.csv')
@@ -430,7 +431,7 @@ class TestRows(unittest.TestCase):
             self.assertEqual(iris[2].col, 136)
 
             col1 = iris.where({'species': 'versicolor'})[0].col
-            
+
             self.assertEqual(col1, 51)
             # where is non-destructive
             self.assertEqual(iris[0].col, 132)
@@ -448,7 +449,7 @@ class TestRows(unittest.TestCase):
 
             self.assertEqual(len(iris.isnum('species')), 0)
             self.assertEqual(len(iris.istext('species')), 150)
-            
+
             self.assertEqual(len(iris.isnum('sepal_length, sepal_width')), 150)
             self.assertEqual(len(iris.where(lambda r: r.species in
                                             ['versicolor', 'virginica'])),
@@ -697,7 +698,7 @@ class TestPort(unittest.TestCase):
         rs3 = []
         start_date = '20010101'
         for i in range(30):
-            rs3.append(Row(date=ymd(f'{i} days', '%Y%m%d')(start_date))) 
+            rs3.append(Row(date=ymd(f'{i} days', '%Y%m%d')(start_date)))
 
         lengths = []
         for rs0 in Rows(rs3).roll(14, 7, 'date', ymd('1 day', '%Y%m%d')):
@@ -839,7 +840,7 @@ class TestRegister(unittest.TestCase):
             c.new("select foo(i, j) as val1, bar(i, j) as val2 from test", 'test1')
             self.assertEqual(c.rows('test1')['val1'], [4, 23, 8, 24, '', 18.8])
             self.assertEqual(c.rows('test1')['val2'], [4, 23, 8, 24, '', 18.8])
-            
+
             c.new("select foo1(i, j) as val1, bar1(i, j) as val2 from test group by x", 'test2')
             self.assertEqual(c.rows('test2')['val1'], [98, 42, '', -24.0])
             self.assertEqual(c.rows('test2')['val2'], [98, 42, '', -24.0])
@@ -916,16 +917,16 @@ class TestSample(unittest.TestCase):
         with dbopen(':memory:') as c:
             c.save('iris.csv', pkeys='col, species')
             cur = c.run('pragma table_info(iris)')
-            self.assertEqual(['col', 'species'], 
+            self.assertEqual(['col', 'species'],
                              [name for (_, name, _, _, _, pk) in cur.fetchall() if pk])
 
             c.save("""
             select * from iris
             """, 'iris', pkeys='sepal_length, col')
-            
+
             cur = c.run('pragma table_info(iris)')
-            # pkeys order must be preserved 
-            self.assertEqual([('col', 2), ('sepal_length', 1)], 
+            # pkeys order must be preserved
+            self.assertEqual([('col', 2), ('sepal_length', 1)],
                              [(name, pk) for (_, name, _, _, _, pk) in cur.fetchall() if pk])
 
 
