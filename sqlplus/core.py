@@ -469,68 +469,15 @@ class SQLPlus:
         # load some user-defined functions from helpers.py
         self.conn.create_function('isnum', -1, isnum)
 
-    def save(self, fname, name=None, cols=None, fn=None,
-             pkeys=None, encoding='utf-8'):
-        # fname can be either a filename (csv or sas) or a sequence of Row(s)
-        if isinstance(fname, str):
-            if fname.endswith('.csv'):
-                name, rows = name or fname[:-4], _csv_reel(fname, encoding)
-            elif fname.endswith('.sas7bdat'):
-                name, rows = name or fname[:-9], _sas_reel(fname)
-            elif fname.endswith('.xlsx'):
-                name, rows = name or fname[:-5], _excel_reel(fname)
-            else:
-                raise ValueError(f'Unknonwn File Extension {fname}')
-        # Then it should be a sequence of Rows
-        else:
-            rows = fname
 
-        if not name:
-            raise ValueError("Table name required")
 
-        temp_name = 'table_' + random_string(10)
-        rows1 = (fn(r) for r in rows) if fn else rows
-
-        row0, rows2 = peek_first(rows1)
-        # if cols not specified row0 must be an instance of Row
-        cols = listify(cols) if cols else row0.columns
-        seq_values = _safe_values(rows2, cols) \
-            if isinstance(row0, Row) else rows2
-
-        pkeys = listify(pkeys) if pkeys else None
-
-        try:
-            # you need temporary cursor.
-            tempcur = self.conn.cursor()
-            _sqlite3_save(tempcur, seq_values, temp_name, cols, pkeys)
-        finally:
-            self.rename(temp_name, name)
-            tempcur.close()
 
     # Limited SQL is allowed cols, order, and group are
     # all just a list of column names
     # no other SQL attages are allowed
-    def apply(self, fn, tname, args=None, name=None,
-              cols=None, where=None, order=None,
-              group=None, roll=None, pkeys=None, max_workers=None):
-        def flatten(seq):
-            for x in seq:
-                try:
-                    yield from x
-                except:
-                    yield x
 
-        name1 = name or getattr(fn, '__name__')
-        seq = self.reel(tname, cols, where, order, group, roll)
-        args1 = (repeat(a) for a in (args or []))
-        if not (group or roll):
-            # if not group work, using multiprocssing is a bad idea
-            max_workers = 1
-        seq1 = pmap(fn, seq, *args1, max_workers=max_workers)
-        self.save((x for x in flatten(seq1) if isinstance(x, Row)),
-                  name1, pkeys=pkeys)
 
-    def reel(self, tname, cols=None, where=None, order=None,
+    def read(self, tname, cols=None, where=None, order=None,
              group=None, roll=None):
         """Generates a sequence of rows from a query.
 
@@ -568,9 +515,78 @@ class SQLPlus:
                 else:
                     yield Rows(ls)
 
+    def show(self, tname, n=None, cols=None, where=None, order=None,
+             file=None, excel=False, encoding='utf-8'):
+
+    def write(self, seq, name=None, cols=None, fn=None,
+             pkeys=None, encoding='utf-8'):
+
+    def apply(self, fn, tname, args=None, name=None,
+              cols=None, where=None, order=None,
+              group=None, roll=None, pkeys=None, max_workers=None):
+        def flatten(seq):
+            for x in seq:
+                try:
+                    yield from x
+                except:
+                    yield x
+
+        name1 = name or getattr(fn, '__name__')
+        seq = self.reel(tname, cols, where, order, group, roll)
+        args1 = (repeat(a) for a in (args or []))
+        if not (group or roll):
+            # if not group work, using multiprocssing is a bad idea
+            max_workers = 1
+        seq1 = pmap(fn, seq, *args1, max_workers=max_workers)
+        self.save((x for x in flatten(seq1) if isinstance(x, Row)),
+                  name1, pkeys=pkeys)
+
+    def write(self, seq, )
+
+    def save(self, fname, name=None, cols=None, fn=None,
+             pkeys=None, encoding='utf-8'):
+
+        # fname can be either a filename (csv or sas) or a sequence of Row(s)
+        if isinstance(fname, str):
+            if fname.endswith('.csv'):
+                name, rows = name or fname[:-4], _csv_reel(fname, encoding)
+            elif fname.endswith('.sas7bdat'):
+                name, rows = name or fname[:-9], _sas_reel(fname)
+            elif fname.endswith('.xlsx'):
+                name, rows = name or fname[:-5], _excel_reel(fname)
+            else:
+                raise ValueError(f'Unknonwn File Extension {fname}')
+        # Then it should be a sequence of Rows
+        else:
+            rows = fname
+
+        if not name:
+            raise ValueError("Table name required")
+
+        temp_name = 'table_' + random_string(10)
+        rows1 = (fn(r) for r in rows) if fn else rows
+
+        row0, rows2 = peek_first(rows1)
+        # if cols not specified row0 must be an instance of Row
+        cols = listify(cols) if cols else row0.columns
+        seq_values = _safe_values(rows2, cols) \
+            if isinstance(row0, Row) else rows2
+
+        pkeys = listify(pkeys) if pkeys else None
+
+        try:
+            # you need temporary cursor.
+            tempcur = self.conn.cursor()
+            _sqlite3_save(tempcur, seq_values, temp_name, cols, pkeys)
+        finally:
+            self.rename(temp_name, name)
+            tempcur.close()
+
+
     # Be careful so that you don't overwrite the file
     def show(self, tname, n=None, cols=None, where=None, order=None,
              file=None, excel=False, encoding='utf-8'):
+
         "Printing to a screen or saving to a file "
         rows = self.reel(tname, cols=cols, where=where, order=order)
         if not file:
@@ -789,6 +805,7 @@ class SQLPlus:
             for (t0, _, _), (t1, _, _) in zip(tinfos, tcols):
                 if t0 != t1:
                     self.drop(t1)
+
 
 
 def _safe_values(rows, cols):
