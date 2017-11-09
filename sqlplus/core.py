@@ -579,17 +579,6 @@ class SQLPlus:
         tables = [row[1].lower() for row in query]
         return sorted(tables)
 
-    def remdup(self, tname, name=None,
-               cols=None, where=None, order=None, group=None, pkeys=None):
-        "remove duplicates"
-        cols = self._cols(_build_query(tname, cols, where, order))
-        group = listify(group) if group else cols
-        pkeys = listify(pkeys)\
-            if pkeys else [c for c in self._pkeys(tname) if c in cols]
-        self.apply(lambda rs: rs[0], tname, name=(name or tname),
-                   cols=cols, where=where, order=order,
-                   group=group, pkeys=pkeys)
-
     # args can be a list, a tuple or a dictionary
     # It is unlikely that we need to worry about the security issues
     # but still there's no harm. So...
@@ -688,8 +677,9 @@ class SQLPlus:
                             return r
                         return fn
 
-                    self.apply(build_fn(mcols), tname, name=temp_tname,
-                               pkeys=list(mcols))
+                    fn1 = build_fn(mcols)
+                    temp_seq = (fn1(r) for r in self.read(tname))
+                    self.write(temp_seq, temp_tname, pkeys=list(mcols))
 
                 else:
                     temp_tname = tname

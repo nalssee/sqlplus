@@ -7,7 +7,8 @@ PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
 from sqlplus.core import Row, Rows, dbopen
-from sqlplus.util import ymd, isnum, read_date, grouper, breakpoints
+from sqlplus.util import ymd, isnum, read_date, grouper, breakpoints, pmap
+from sqlplus.load import read_csv
 from sqlplus import core
 
 
@@ -176,7 +177,8 @@ class TestRows(unittest.TestCase):
 
     def test_order(self):
         with dbopen('sample.db') as q:
-            q.remdup('customers', name='c1', group='country')
+            seq = (rs[0] for rs in q.read('customers', group='country'))
+            q.write(seq, 'c1')
             countries = q.rows('c1').order('country', reverse=True)['country']
             self.assertEqual(len(countries), 21)
             self.assertEqual(countries[:3], ['Venezuela', 'USA', 'UK'])
@@ -196,15 +198,6 @@ class TestRows(unittest.TestCase):
             self.assertEqual(len(rs.where("""
             country="USA" and postalcode < 90000""")), 4)
             self.assertEqual(len(rs.where(lambda r: isnum(r.postalcode))), 66)
-
-            # TODO
-
-
-
-    def test_summary(self):
-        with dbopen('sample.db') as q:
-            rs = q.rows('customers')
-            self.assertEqual(rs.summary()['city'][1], 69)
 
     def test_corr(self):
         with dbopen('sample.db') as q:
@@ -265,7 +258,7 @@ class TestRows(unittest.TestCase):
             rs = q.rows('customers')
             rs.show(file='sample.csv')
             with dbopen(':memory:') as q1:
-                q1.save(rs, 'foo')
+                q1.write(rs, 'foo')
                 self.assertEqual(len(q1.rows('foo')), 91)
                 os.remove(os.path.join(core.WORKSPACE, 'sample.csv'))
 
@@ -302,10 +295,11 @@ class TestSQLPlus(unittest.TestCase):
             return r
 
         with dbopen('sample.db') as q:
-            q.apply(to_month, 'orders', name='orders1')
+            tseq = (to_month(r) for r in q.read('orders'))
+            q.write(tseq, 'orders1')
 
             ls = []
-            for rs in q.reel('orders1', group='date'):
+            for rs in q.read('orders1', group='date'):
                 ls.append(len(rs))
 
             self.assertEqual(ls, [22, 25, 23, 26, 25, 31, 33, 11])
@@ -313,27 +307,18 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.reel('orders1',
+            for rs in q.read('orders1',
                              roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
                 ls.append(len(rs))
             self.assertEqual(ls, [70, 74, 89, 44])
 
             ls = []
-            for rs in q.reel('orders1', group='shipperid',
+            for rs in q.read('orders1', group='shipperid',
                              roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
                 ls.append(len(rs))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
                              [70, 74, 89, 44])
             q.drop('orders1')
-
-    def test_show(self):
-        with dbopen('sample.db') as q:
-            q.show('customers', where='country="USA"', file='sample.csv')
-            q.save('sample.csv')
-            self.assertTrue('sample' in q.tables)
-            self.assertEqual(len(q.rows('sample')), 13)
-            os.remove(os.path.join(core.WORKSPACE, 'sample.csv'))
-            q.drop('sample')
 
     def test_register(self):
         with dbopen(':memory:') as c:
@@ -395,23 +380,27 @@ class TestSQLPlus(unittest.TestCase):
             def to_month(r):
                 r.date = read_date(r.orderdate, '%Y-%m-%d', '%Y%m')
                 return r
-
-            q.apply(to_month, 'orders', name='orders1')
+            tseq = (to_month(r) for r in q.read('orders'))
+            q.write(tseq, 'orders1')
             # There's no benefits in using multiple cores
             # You should know what you are doing.
-            q.apply(avg_id, 'orders1', group='date', name='orders2',
-                    max_workers=2)
+
+            tseq = pmap(avg_id, q.read('orders1', group='date'), max_workers=2)
+            q.write(tseq, 'orders2')
 
             # testing reel
             ls = []
-            for rs in q.reel('orders2',
+            for rs in q.read('orders2',
                              roll=(5, 2, 'date', ymd('1 month', '%Y%m'))):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
             self.assertEqual(len(q.rows('orders1')), 196)
-            q.remdup('orders1', group='date, customerid',
-                     pkeys='date, customerid')
+
+            tseq = (rs[0] for rs in q.read('orders1',
+                                           group='date, customerid'))
+
+            q.write(tseq, 'orders1', pkeys='date, customerid')
             self.assertEqual(len(q.rows('orders1')), 161)
 
             q.join(
@@ -469,9 +458,10 @@ class TestSQLPlus(unittest.TestCase):
 if __name__ == "__main__":
     ws_path = os.path.join(os.getcwd(), 'workspace')
     if not os.path.isfile(os.path.join(ws_path, 'sample.db')):
+        # First write csv files in workspace to sqlite db
         with dbopen('sample.db') as q:
             for f in os.listdir(ws_path):
                 if f.endswith('.csv'):
-                    q.save(f)
+                    q.write(read_csv(f), f[:-4])
 
     unittest.main()

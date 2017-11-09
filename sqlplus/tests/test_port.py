@@ -1,4 +1,6 @@
-#
+# Deprecated
+# Didn't delete this file just in case you want to refer to some of snippets
+
 import os
 import sys
 import unittest
@@ -17,7 +19,6 @@ from sqlplus.util import isnum,  \
     prepend_header, pmap, grouper, same, ymd, read_date, listify
 
 from sqlplus.load import fnguide
-
 
 def fib(n):
     if n < 2:

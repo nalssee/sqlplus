@@ -14,7 +14,8 @@ from sqlplus.util import grouper, listify
 from sas7bdat import SAS7BDAT
 
 
-__all__ = ['read_csv', 'read_excel', 'read_df', 'read_sas', 'read_fnguide']
+__all__ = ['read_csv', 'read_excel', 'read_df', 'read_sas',
+           'read_fnguide', 'read_df']
 
 
 if os.name == 'nt':
@@ -23,7 +24,7 @@ elif os.name == 'posix':
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
-def read_csv(filename, encoding):
+def read_csv(filename, encoding='utf-8'):
     "Loads well-formed csv file, 1 header line and the rest is data "
     def is_empty_line(line):
         """Tests if a list of strings is empty for example ["", ""] or []
@@ -79,71 +80,60 @@ def read_df(df):
     for i, r in df.iterrows():
         r0 = Row()
         for c, v in zip(cols, (r[c] for c in cols)):
-            r0[c] = v
+            r0[c] = str(v)
         yield r0
 
 
-def read_fnguide(filename, cols=None):
+# wierd form excel file
+def read_fnguide(filename, cols):
+    def convert_string(x):
+        # no comma
+        if x.find(',') == -1:
+            return x
+        try:
+            return locale.atoi(x)
+        except ValueError:
+            try:
+                return locale.atof(x)
+            except:
+                return x
+    # Get firm codes
+    # (number of columns(items), list of firm codes)
+    def extract_ids(xs):
+        result = []
+        first_ids = None
+        for _, ss in groupby(xs[1:], lambda x: x):
+            ss = list(ss)
+            if not first_ids:
+                first_ids = ss
+            # it could be just an empty string
+            if ss[0].strip():
+                result.append(ss[0].strip())
+        return len(first_ids), result
+
     filename = os.path.join(sqlplus.core.WORKSPACE, filename)
     with open(filename, encoding='cp949') as f:
-        # 8줄 버리고
+        # throw away 8 lines
         for _ in range(8):
             f.readline()
         reader = csv.reader(f)
         # checks if the number of 'cols' corresponds with the file
         line1 = next(reader)
         n, ids = extract_ids(line1)
-        # 5줄 더 버리고
+        # throw away 5 more lines
         for _ in range(5):
             next(reader)
-        # cols given
-        if cols:
-            cols = listify(cols)
-            assert len(cols) == n, f"Invalid cols given, {cols}, {n}"
-            for line in csv.reader(f):
-                for s, vs in zip(ids, grouper(line[1:], n)):
-                    # 1,232,392 => interpret
-                    vs1 = (convert_string(v) for v in vs)
-                    r = Row()
-                    r.date = line[0]
-                    r.id = s
-                    for c, v in zip(cols, vs1):
-                        r[c] = v
-                    yield r
-        else:
-            for line in csv.reader(f):
-                for s, vs in zip(ids, grouper(line[1:], n)):
-                    # date, id, col1, col2, ...
-                    yield (line[0], s, *vs)
 
-
-# doesnt have to be fast
-def extract_ids(xs):
-    result = []
-    first_ids = None
-    for _, ss in groupby(xs[1:], lambda x: x):
-        ss = list(ss)
-        if not first_ids:
-            first_ids = ss
-        # it could be just an empty string
-        if ss[0].strip():
-            result.append(ss[0].strip())
-    return len(first_ids), result
-
-
-def all_equal(lst):
-    return (not lst) or len(set(lst)) == 1
-
-
-def convert_string(x):
-    # no comma
-    if x.find(',') == -1:
-        return x
-    try:
-        return locale.atoi(x)
-    except ValueError:
-        try:
-            return locale.atof(x)
-        except:
-            return x
+        cols = listify(cols)
+        assert len(cols) == n, f"{n} cols required, given {cols}"
+        for line in csv.reader(f):
+            for s, vs in zip(ids, grouper(line[1:], n)):
+                # 1,232,392 => interpret
+                vs1 = (convert_string(v) for v in vs)
+                r = Row()
+                r.date = line[0]
+                r.id = s
+                for c, v in zip(cols, vs1):
+                    r[c] = v
+                yield r
 
