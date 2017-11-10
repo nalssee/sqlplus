@@ -461,7 +461,7 @@ if __name__ == "__main__":
         # First write csv files in workspace to sqlite db
         with dbopen('sample.db') as q:
             for f in os.listdir(ws_path):
-                if f.endswith('.csv'):
+                if f.endswith('.csv') and f != 'acc1.csv':
                     q.write(read_csv(f), f[:-4])
 
     unittest.main()
