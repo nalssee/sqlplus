@@ -512,7 +512,7 @@ class SQLPlus:
         finally:
             self.rename(temp_name, name)
             tempcur.close()
-            print(f'written: {name} in DB')
+            print(f'Written {name} in DB')
 
     # register function to sql
     def register(self, fn):
@@ -633,6 +633,7 @@ class SQLPlus:
             self.sql(f"alter table { temp_name } rename to { name }")
         finally:
             self.sql(f'drop table if exists { temp_name }')
+            print(f'Written {name} in DB')
 
     def join(self, *tinfos, name=None, pkeys=None):
         "simplified version of left join"
@@ -707,6 +708,7 @@ class SQLPlus:
             for (t0, _, _), (t1, _, _) in zip(tinfos, tcols):
                 if t0 != t1:
                     self.drop(t1)
+            print(f'Written {name} in DB')
 
 
 def _safe_values(rows, cols):
