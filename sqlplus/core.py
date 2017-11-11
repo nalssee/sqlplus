@@ -5,13 +5,11 @@ reeling off rows from db(sqlite3) and saving them back to db
 """
 import os
 import sys
-import csv
 import re
 import sqlite3
 import copy
 import warnings
 import inspect
-import platform
 # import operator
 import numpy as np
 import matplotlib
@@ -357,21 +355,6 @@ class Rows:
             self.order(keyfn)
         for _, rs in groupby(self, keyfn):
             yield self._newrows(list(rs))
-
-    def show(self, n=None, cols=None, file=None, encoding='utf-8',
-             excel=False):
-        if file or excel:
-            if (isinstance(n, int) and n > 0):
-                rows = self.rows[:n]
-            else:
-                rows = self.rows
-
-            if file:
-                _csv(rows, file, cols, encoding)
-            if excel:
-                _open_excel(rows, file, cols, encoding, excel)
-        else:
-            _show(self.rows, n or 10, cols)
 
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
@@ -782,66 +765,6 @@ def _sqlite3_save(cursor, srows, table_name, column_names, pkeys):
         raise Exception("Trying to insert invaid Values to DB")
 
 
-def _write_all(lines, file):
-    "Write all to csv"
-    # you need to pass newline for Windows
-    w = csv.writer(file, lineterminator='\n')
-    for line in lines:
-        w.writerow(line)
-
-
-# write to a csv
-def _csv(rows, file, cols, encoding='utf-8'):
-    if cols:
-        rows = _pick(cols, rows)
-    row0, rows1 = peek_first(rows)
-    if isinstance(row0, Row):
-        seq_values = chain([row0.columns], _safe_values(rows1, row0.columns))
-    else:
-        seq_values = rows1
-    if file == sys.stdout:
-        _write_all(seq_values, file)
-    elif isinstance(file, str):
-        try:
-            fout = open(os.path.join(WORKSPACE, file), 'w', encoding=encoding)
-            _write_all(seq_values, fout)
-        finally:
-            fout.close()
-    else:
-        try:
-            _write_all(seq_values, file)
-        finally:
-            file.close()
-
-
-def _show(rows, n, cols):
-    """Printing to a screen or saving to a file
-
-    rows: iterator of Row instances
-    n: maximum number of lines to show
-    cols:  columns to show
-    """
-    # so that you can easily maintain code
-    # Searching nrows is easier than searching n in editors
-    nrows = n
-    if cols:
-        rows = _pick(cols, rows)
-
-    row0, rows1 = peek_first(rows)
-    cols = row0.columns
-    seq_values = _safe_values(rows1, cols)
-
-    with pd.option_context("display.max_rows", nrows), \
-            pd.option_context("display.max_columns", 1000):
-        # make use of pandas DataFrame displaying
-        # islice 1 more rows than required
-        # to see if there are more rows left
-        list_values = list(islice(seq_values, nrows + 1))
-        print(pd.DataFrame(list_values[:nrows], columns=cols))
-        if len(list_values) > nrows:
-            print("...more rows...")
-
-
 # sequence row values to rows
 def _build_rows(seq_values, cols):
     "build rows from an iterator of values"
@@ -860,43 +783,6 @@ def _get_name_from_query(query):
         return pat.search(query.lower()).group(1)
     except:
         return None
-
-
-def _open_excel(rows, file, cols, encoding, excel):
-    # TODO: Creates an unnecessary temporary csv file
-    # Take care of it. If you think it bugs you
-    def _open(file):
-        filepath = os.path.join(WORKSPACE, file)
-        if os.path.isfile(filepath):
-            if os.name == 'nt':
-                excel1 = excel if isinstance(excel, str) else 'excel'
-                cmd = f'start {excel1}'
-            elif platform.system() == 'Linux':
-                # Libreoffice calc is the only viable option for linux
-                excel1 = excel if isinstance(excel, str) else 'libreoffice'
-                cmd = excel1
-            elif os.name == 'posix':
-                # For OS X, use Numbers, not Excel.
-                # It is free and good enough for this purpose.
-                excel1 = excel if isinstance(excel, str) else 'numbers'
-                cmd = f'open -a {excel1}'
-            try:
-                os.system(f'{cmd} {filepath}')
-            except:
-                print(f"{excel} not found")
-        else:
-            print(f'File does not exist {filepath}')
-
-    if isinstance(file, str):
-        _open(file)
-    else:
-        # A bit naive
-        for f in os.listdir(WORKSPACE):
-            if f.startswith('temp_') and f.endswith('.csv'):
-                os.remove(os.path.join(WORKSPACE, f))
-        file = 'temp_' + random_string() + '.csv'
-        _csv(rows, file, cols, encoding)
-        _open(file)
 
 
 def _roll(seq, period, jump, keyfn, nextfn):

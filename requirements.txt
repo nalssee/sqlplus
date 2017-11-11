@@ -11,3 +11,5 @@ sas7bdat
 scipy
 six
 statsmodels
+pypred
+xlrd

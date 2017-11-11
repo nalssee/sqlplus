@@ -1,6 +1,3 @@
-# TODO: This lib works but
-# not cleaned up and not tested properly
-
 import locale
 import os
 import csv
@@ -97,6 +94,7 @@ def read_fnguide(filename, cols):
                 return locale.atof(x)
             except:
                 return x
+
     # Get firm codes
     # (number of columns(items), list of firm codes)
     def extract_ids(xs):
