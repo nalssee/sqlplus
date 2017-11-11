@@ -512,6 +512,7 @@ class SQLPlus:
         finally:
             self.rename(temp_name, name)
             tempcur.close()
+            print(f'written: {name} in DB')
 
     # register function to sql
     def register(self, fn):
