@@ -304,7 +304,7 @@ class Rows:
         if wcol:
             rs = self.isnum(col, wcol)
             total = sum(r[wcol] for r in rs)
-            return sum(r[col] * r[wcol] / total for r in rs)
+            return sum(r[col] * r[wcol] for r in rs) / total
         else:
             return st.mean(r[col] for r in self if isnum(r[col]))
 

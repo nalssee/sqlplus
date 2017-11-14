@@ -268,6 +268,7 @@ class TestRows(unittest.TestCase):
             self.assertEqual(rs.df().shape, (91, 7))
 
     def test_pn(self):
+        # No need to order first
         with dbopen('sample.db') as q:
             rs = q.rows('orderdetails')
             bps = breakpoints(rs['quantity'], [0.3, 0.7])
