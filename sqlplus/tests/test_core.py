@@ -253,22 +253,12 @@ class TestRows(unittest.TestCase):
             self.assertEqual(ls, [3, 2, 2, 9, 3, 2, 2, 11, 11,
                                   1, 3, 5, 1, 1, 2, 5, 2, 2, 7, 13, 4])
 
-    def test_show(self):
-        with dbopen('sample.db') as q:
-            rs = q.rows('customers')
-            rs.show(file='sample.csv')
-            with dbopen(':memory:') as q1:
-                q1.write(rs, 'foo')
-                self.assertEqual(len(q1.rows('foo')), 91)
-                os.remove(os.path.join(core.WORKSPACE, 'sample.csv'))
-
     def test_df(self):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
 
     def test_pn(self):
-        # No need to order first
         with dbopen('sample.db') as q:
             rs = q.rows('orderdetails')
             bps = breakpoints(rs['quantity'], [0.3, 0.7])

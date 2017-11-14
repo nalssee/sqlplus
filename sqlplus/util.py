@@ -132,6 +132,7 @@ def isnum(*xs):
 
 
 def ymd(step, fmt='%Y%m%d'):
+    # ymd('3 months', '%Y%m')('198203') => '198206'
     def add_datetime(n, unit):
         def fn(date):
             d1 = datetime.strptime(str(date), fmt) + relativedelta(**{unit: n})

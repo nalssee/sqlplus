@@ -618,13 +618,21 @@ class SQLPlus:
 
     def join(self, *tinfos, name=None, pkeys=None):
         "simplified version of left join"
-        # if name is not given first table name
+        # if name is not given first table name#
+        # tinfo: [tname, cols, cols to match]
+        # ['sample', 'col1, col2 as colx', 'col3, col4']
+        # or
+        # ['sample', 'col1, col2 as colx', {'date': ymd(3, '%Y%m'), 'col4': None}]
         def get_newcols(cols):
+            # extract new column names
+            # if there's any renaming
             result = []
             for c in listify(cols.lower()):
                 a, *b = [x.strip() for x in c.split('as')]
                 result.append(b[0] if b else a)
             return result
+        # if no name is given
+        # then the first table name is the name of the output table
         name = name or tinfos[0][0]
         cols0 = get_newcols(tinfos[0][1])
         # TODO: Not soure about this
@@ -633,6 +641,7 @@ class SQLPlus:
 
         # Validity checks
         all_newcols = []
+        # number of matching columns for each given table
         mcols_sizes = []
         for _, cols, mcols in tinfos:
             all_newcols += get_newcols(cols)
@@ -659,11 +668,9 @@ class SQLPlus:
                                     r[c] = f(r[c])
                             return r
                         return fn
-
                     fn1 = build_fn(mcols)
                     temp_seq = (fn1(r) for r in self.read(tname))
                     self.write(temp_seq, temp_tname, pkeys=list(mcols))
-
                 else:
                     temp_tname = tname
                 newcols = [temp_tname + '.' + c for c in listify(cols)]
