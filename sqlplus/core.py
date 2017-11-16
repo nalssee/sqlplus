@@ -349,12 +349,10 @@ class Rows:
                 r[col] = lower
         return self
 
-    # No preorder as in 'read'
-    # You may think it can cause troubles
-    # but it must go the same way as in 'read'
+    # implicit ordering
     def group(self, key):
         keyfn = _build_keyfn(key)
-        for _, rs in groupby(self, keyfn):
+        for _, rs in groupby(self.order(keyfn), keyfn):
             yield self._newrows(list(rs))
 
     # Use this when you need to see what's inside
@@ -437,42 +435,23 @@ class SQLPlus:
         # load some user-defined functions from helpers.py
         self.conn.create_function('isnum', -1, isnum)
 
-    def read(self, tname, cols=None, where=None, order=None,
-             group=None, roll=None):
+    def read(self, tname, cols=None, where=None, order=None):
         """Generates a sequence of rows from a table.
-
-        ONE IMPORTANT THING!!
-            In SQL, 'order by' comes after 'group by'
-            Preorder is impliced
-
-            However in 'read',
-            You have to order manualy for grouping
-            This is intentional and important.
         """
-        order = listify(order) if order else []
-        group = listify(group) if group else []
-        dcol = None
-        if roll:
-            try:
-                period, jump, dcol, nextfn = roll
-            except:
-                raise ValueError(f'Invalid parameters for rolling {roll}')
-        order = ([dcol] if dcol else []) + group + \
-            [c for c in order if (c not in group) and c != dcol]
-
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
         if len(columns) != len(set(columns)):
             raise ValueError('duplicates in columns names')
 
-        rows = _build_rows(qrows, columns)
+        yield from _build_rows(qrows, columns)
         if (not group) and (not roll):
             yield from rows
         elif group and (not roll):
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
         else:
+
             keyfn = _build_keyfn(dcol)
             for ls in _roll(rows, period, jump, keyfn, nextfn):
                 # you've gone through _roll, there can't be too many iterations
@@ -804,6 +783,10 @@ def _get_name_from_query(query):
         return pat.search(query.lower()).group(1)
     except:
         return None
+
+        elif group and (not roll):
+            for _, rs in groupby(rows, _build_keyfn(group)):
+                yield Rows(rs)
 
 
 def _roll(seq, period, jump, keyfn, nextfn):

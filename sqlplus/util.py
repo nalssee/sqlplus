@@ -127,7 +127,7 @@ def isnum(*xs):
         for x in xs:
             float(x)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -146,7 +146,8 @@ def ymd(step, fmt='%Y%m%d'):
             n, unit = int(n), unit.lower()
             if not unit.endswith('s'):
                 unit += 's'
-        except:
+        # TODO: Wierd style
+        except Exception:
             raise ValueError(f"Invalid format {step}")
         return add_datetime(n, unit)
 

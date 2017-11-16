@@ -6,10 +6,7 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus.core import Row, Rows, dbopen
-from sqlplus.util import ymd, isnum, read_date, grouper, breakpoints, pmap
-from sqlplus.load import read_csv
-from sqlplus import core
+from sqlplus import *
 
 
 class TestRow(unittest.TestCase):
@@ -177,7 +174,7 @@ class TestRows(unittest.TestCase):
 
     def test_order(self):
         with dbopen('sample.db') as q:
-            seq = (rs[0] for rs in q.read('customers', group='country'))
+            seq = (rs[0] for rs in group(q.read('customers'), 'country'))
             q.write(seq, 'c1')
             countries = q.rows('c1').order('country', reverse=True)['country']
             self.assertEqual(len(countries), 21)
@@ -290,7 +287,7 @@ class TestSQLPlus(unittest.TestCase):
             q.write(tseq, 'orders1')
 
             ls = []
-            for rs in q.read('orders1', group='date'):
+            for rs in group(q.read('orders1'), 'date'):
                 ls.append(len(rs))
 
             self.assertEqual(ls, [22, 25, 23, 26, 25, 31, 33, 11])
@@ -298,15 +295,13 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.read('orders1',
-                             roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
+            for rs in roll(q.read('orders1'), 3, 2, 'date', ymd('1 month', '%Y%m')):
                 ls.append(len(rs))
             self.assertEqual(ls, [70, 74, 89, 44])
 
             ls = []
-            for rs in q.read('orders1', group='shipperid',
-                             roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
-                ls.append(len(rs))
+            for rs in roll(q.read('orders1'), 3, 2, 'date', ymd('1 month', '%Y%m')):
+                ls.append(len(list(Rows(rs).group('shipperid'))))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
                              [70, 74, 89, 44])
             q.drop('orders1')
@@ -376,19 +371,18 @@ class TestSQLPlus(unittest.TestCase):
             # There's no benefits in using multiple cores
             # You should know what you are doing.
 
-            tseq = pmap(avg_id, q.read('orders1', group='date'), max_workers=2)
+            tseq = pmap(avg_id, group(q.read('orders1'), 'date'), max_workers=2)
             q.write(tseq, 'orders2')
 
             # testing reel
             ls = []
-            for rs in q.read('orders2',
-                             roll=(5, 2, 'date', ymd('1 month', '%Y%m'))):
+            for rs in roll(q.read('orders2'), 5, 2, 'date', ymd('1 month', '%Y%m')):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
             self.assertEqual(len(q.rows('orders1')), 196)
 
-            tseq = (rs[0] for rs in q.read('orders1',
+            tseq = (rs[0] for rs in group(q.read('orders1'),
                                            group='date, customerid'))
 
             q.write(tseq, 'orders1', pkeys='date, customerid')

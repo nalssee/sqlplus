@@ -6,9 +6,8 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus.core import dbopen
-from sqlplus.load import read_csv, read_excel, read_sas, read_fnguide
-from sqlplus.util import peek_first
+from sqlplus import *
+
 
 class TestLoading(unittest.TestCase):
     def test_load_csv(self):

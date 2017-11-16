@@ -1,0 +1,15 @@
+cycler
+matplotlib
+numpy
+pandas
+patsy
+psutil
+pyparsing
+python-dateutil
+pytz
+sas7bdat
+scipy
+six
+statsmodels
+pypred
+xlrd

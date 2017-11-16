@@ -11,10 +11,6 @@ from sqlplus.util import grouper, listify
 from sas7bdat import SAS7BDAT
 
 
-__all__ = ['read_csv', 'read_excel', 'read_df', 'read_sas',
-           'read_fnguide', 'read_df']
-
-
 if os.name == 'nt':
     locale.setlocale(locale.LC_ALL, 'english_USA')
 elif os.name == 'posix':
@@ -92,7 +88,7 @@ def read_fnguide(filename, cols):
         except ValueError:
             try:
                 return locale.atof(x)
-            except:
+            except Exception:
                 return x
 
     # Get firm codes
