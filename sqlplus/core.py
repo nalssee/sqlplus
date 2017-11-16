@@ -349,10 +349,11 @@ class Rows:
                 r[col] = lower
         return self
 
-    def group(self, key, order=True):
+    # No preorder as in 'read'
+    # You may think it can cause troubles
+    # but it must go the same way as in 'read'
+    def group(self, key):
         keyfn = _build_keyfn(key)
-        if order:
-            self.order(keyfn)
         for _, rs in groupby(self, keyfn):
             yield self._newrows(list(rs))
 
@@ -369,8 +370,15 @@ class Rows:
             seq = _safe_values(self.rows, cols)
             return pd.DataFrame(list(seq), columns=cols)
 
+    # If Rows are preordered, it's possible to implement a faster version
+    # Should I? No, most of end users are clumsy including me.
+    # You may provide an option to let them assume the order of the rows
+    # but it makes matters complicated Just leave it as is
     def pn(self, col, bps, pncol=None):
-        "Assign portfolio number using the given breakpoints"
+        """"Assign portfolio number using the given breakpoints
+
+        No need to order Rows first
+        """
         def loc(x, bps):
             for i, b in enumerate(bps):
                 if x < b:
@@ -431,9 +439,15 @@ class SQLPlus:
 
     def read(self, tname, cols=None, where=None, order=None,
              group=None, roll=None):
-        """Generates a sequence of rows from a query.
+        """Generates a sequence of rows from a table.
 
-        query:  select statement or table name
+        ONE IMPORTANT THING!!
+            In SQL, 'order by' comes after 'group by'
+            Preorder is impliced
+
+            However in 'read',
+            You have to order manualy for grouping
+            This is intentional and important.
         """
         order = listify(order) if order else []
         group = listify(group) if group else []
@@ -463,7 +477,7 @@ class SQLPlus:
             for ls in _roll(rows, period, jump, keyfn, nextfn):
                 # you've gone through _roll, there can't be too many iterations
                 if group:
-                    yield from Rows(ls).group(group)
+                    yield from Rows(ls).order(group).group(group)
                 else:
                     yield Rows(ls)
 

@@ -248,7 +248,7 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
             ls = []
-            for rs1 in rs.group('country'):
+            for rs1 in rs.order('country').group('country'):
                 ls.append(len(rs1))
             self.assertEqual(ls, [3, 2, 2, 9, 3, 2, 2, 11, 11,
                                   1, 3, 5, 1, 1, 2, 5, 2, 2, 7, 13, 4])
