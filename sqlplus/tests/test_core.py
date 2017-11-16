@@ -211,6 +211,13 @@ class TestRows(unittest.TestCase):
             rs2 = q.rows('customers').isnum('postalcode')
             self.assertEqual(len(rs1), len(rs2))
 
+            rs1 = q.rows('customers', where='isnum(postalcode, customerid)')
+            rs2 = q.rows('customers', where='isnum(postalcode)')
+            rs3 = q.rows('customers', where='isnum(postalcode, city)')
+            self.assertEqual(len(rs1), 66)
+            self.assertEqual(len(rs2), 66)
+            self.assertEqual(len(rs3), 0)
+
     def test_avg(self):
         with dbopen('sample.db') as q:
             rs1 = q.rows('products')
