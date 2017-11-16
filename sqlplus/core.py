@@ -12,9 +12,9 @@ import warnings
 import inspect
 # import operator
 import numpy as np
-import matplotlib
+# import matplotlib
 # You need to specify in macos somehow
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 import statistics as st
@@ -24,11 +24,11 @@ from pandas.plotting import scatter_matrix
 from collections import OrderedDict
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
-    zip_longest, repeat
+    zip_longest
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, pmap
+    parse_model, random_string
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -238,6 +238,7 @@ class Rows:
 
     # destructive!!!
     def order(self, key, reverse=False):
+        # You can pass fn as key arg but not recommended
         self.rows.sort(key=_build_keyfn(key), reverse=reverse)
         return self
 
@@ -351,6 +352,7 @@ class Rows:
 
     # implicit ordering
     def group(self, key):
+        # key can be a fn but not recommended
         keyfn = _build_keyfn(key)
         for _, rs in groupby(self.order(keyfn), keyfn):
             yield self._newrows(list(rs))
@@ -435,30 +437,36 @@ class SQLPlus:
         # load some user-defined functions from helpers.py
         self.conn.create_function('isnum', -1, isnum)
 
-    def read(self, tname, cols=None, where=None, order=None):
+    def read(self, tname, cols=None, where=None,
+             order=None, group=None, roll=None):
         """Generates a sequence of rows from a table.
         """
+        # At most one among order, group and roll
+        if (1 if order else 0) + (1 if group else 0) + (1 if roll else 0) > 1:
+            raise ValueError("""At most one arg allowed
+                                among order, group and roll""")
+        # set implicit order
+        if group:
+            order = group
+        elif roll:
+            size, step, dcol, nextfn = roll
+            order = dcol
+
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
         if len(columns) != len(set(columns)):
             raise ValueError('duplicates in columns names')
 
-        yield from _build_rows(qrows, columns)
-        if (not group) and (not roll):
-            yield from rows
-        elif group and (not roll):
+        rows = _build_rows(qrows, columns)
+        if group:
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
+        elif roll:
+            for ls in _roll(rows, size, step, _build_keyfn(dcol), nextfn):
+                yield Rows(ls)
         else:
-
-            keyfn = _build_keyfn(dcol)
-            for ls in _roll(rows, period, jump, keyfn, nextfn):
-                # you've gone through _roll, there can't be too many iterations
-                if group:
-                    yield from Rows(ls).order(group).group(group)
-                else:
-                    yield Rows(ls)
+            yield from rows
 
     def write(self, seq, name, cols=None, pkeys=None):
         """
@@ -615,7 +623,8 @@ class SQLPlus:
         # tinfo: [tname, cols, cols to match]
         # ['sample', 'col1, col2 as colx', 'col3, col4']
         # or
-        # ['sample', 'col1, col2 as colx', {'date': ymd(3, '%Y%m'), 'col4': None}]
+        # ['sample', 'col1, col2 as colx',
+        # {'date': ymd(3, '%Y%m'), 'col4': None}]
         def get_newcols(cols):
             # extract new column names
             # if there's any renaming
@@ -783,10 +792,6 @@ def _get_name_from_query(query):
         return pat.search(query.lower()).group(1)
     except:
         return None
-
-        elif group and (not roll):
-            for _, rs in groupby(rows, _build_keyfn(group)):
-                yield Rows(rs)
 
 
 def _roll(seq, period, jump, keyfn, nextfn):

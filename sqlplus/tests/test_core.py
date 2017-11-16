@@ -174,7 +174,7 @@ class TestRows(unittest.TestCase):
 
     def test_order(self):
         with dbopen('sample.db') as q:
-            seq = (rs[0] for rs in group(q.read('customers'), 'country'))
+            seq = (rs[0] for rs in q.read('customers', group='country'))
             q.write(seq, 'c1')
             countries = q.rows('c1').order('country', reverse=True)['country']
             self.assertEqual(len(countries), 21)
@@ -277,6 +277,7 @@ def avg_id(rs):
 
 
 class TestSQLPlus(unittest.TestCase):
+    # apply is removed but the following works
     def test_apply(self):
         def to_month(r):
             r.date = read_date(r.orderdate, '%Y-%m-%d', '%Y%m')
@@ -287,7 +288,7 @@ class TestSQLPlus(unittest.TestCase):
             q.write(tseq, 'orders1')
 
             ls = []
-            for rs in group(q.read('orders1'), 'date'):
+            for rs in q.read('orders1', group='date'):
                 ls.append(len(rs))
 
             self.assertEqual(ls, [22, 25, 23, 26, 25, 31, 33, 11])
@@ -295,13 +296,14 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in roll(q.read('orders1'), 3, 2, 'date', ymd('1 month', '%Y%m')):
+            for rs in q.read('orders1', roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
                 ls.append(len(rs))
             self.assertEqual(ls, [70, 74, 89, 44])
 
             ls = []
-            for rs in roll(q.read('orders1'), 3, 2, 'date', ymd('1 month', '%Y%m')):
-                ls.append(len(list(Rows(rs).group('shipperid'))))
+            for rs in q.read('orders1', roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
+                for rs1 in rs.group('shipperid'):
+                    ls.append(len(rs1))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
                              [70, 74, 89, 44])
             q.drop('orders1')
@@ -371,19 +373,18 @@ class TestSQLPlus(unittest.TestCase):
             # There's no benefits in using multiple cores
             # You should know what you are doing.
 
-            tseq = pmap(avg_id, group(q.read('orders1'), 'date'), max_workers=2)
+            tseq = pmap(avg_id, q.read('orders1', group='date'), max_workers=2)
             q.write(tseq, 'orders2')
 
             # testing reel
             ls = []
-            for rs in roll(q.read('orders2'), 5, 2, 'date', ymd('1 month', '%Y%m')):
+            for rs in q.read('orders2', roll=(5, 2, 'date', ymd('1 month', '%Y%m'))):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
             self.assertEqual(len(q.rows('orders1')), 196)
 
-            tseq = (rs[0] for rs in group(q.read('orders1'),
-                                           group='date, customerid'))
+            tseq = (rs[0] for rs in q.read('orders1', group='date, customerid'))
 
             q.write(tseq, 'orders1', pkeys='date, customerid')
             self.assertEqual(len(q.rows('orders1')), 161)
