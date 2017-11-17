@@ -1,7 +1,12 @@
+import sys
 import os
 import unittest
-from sqlplus import *
 
+TESTPATH = os.path.dirname(os.path.realpath(__file__))
+PYPATH = os.path.join(TESTPATH, '..', '..')
+sys.path.append(PYPATH)
+
+from sqlplus import *
 
 class TestRow(unittest.TestCase):
     def test_init(self):
@@ -366,7 +371,10 @@ class TestSQLPlus(unittest.TestCase):
 
             q.join(
                 ['customers', 'customername', 'customerid'],
-                ['orders', 'orderid', 'customerid'],
+                # if the matching columns (the third item in the following list
+                # is missing, then it is assumed to be the same as the matching column
+                # of the first table
+                ['orders', 'orderid'],
                 name='customers1'
             )
             rs = q.rows('customers1')

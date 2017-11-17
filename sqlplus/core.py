@@ -12,9 +12,11 @@ import warnings
 import inspect
 # import operator
 import numpy as np
+
+# TODO: figure this out if this causes troubles in macos
 # import matplotlib
-# You need to specify in macos somehow
 # matplotlib.use('TkAgg')
+
 import matplotlib.pyplot as plt
 
 import statistics as st
@@ -493,8 +495,6 @@ class SQLPlus:
         seq_values = _safe_values(seq2, cols) \
             if isinstance(row0, Row) else seq2
 
-        pkeys = listify(pkeys) if pkeys else None
-
         try:
             # you need temporary cursor.
             tempcur = self.conn.cursor()
@@ -639,13 +639,13 @@ class SQLPlus:
                 a, *b = [x.strip() for x in c.split('as')]
                 result.append(b[0] if b else a)
             return result
-        # if no name is given
-        # then the first table name is the name of the output table
+
+        # No name specified, then the first table name is the output table name
         name = name or tinfos[0][0]
-        cols0 = get_newcols(tinfos[0][1])
-        # TODO: Not soure about this
-        pkeys = listify(pkeys)\
-            if pkeys else [c for c in self._pkeys(tinfos[0][0]) if c in cols0]
+        # rewrite tinfos if there's missing matching columns
+        mcols0 = tinfos[0][2]
+        tinfos = [[tname, cols, mcols[0] if mcols else mcols0]
+                  for tname, cols, *mcols in tinfos]
 
         # Validity checks
         all_newcols = []
@@ -658,9 +658,6 @@ class SQLPlus:
         assert len(all_newcols) == len(set(all_newcols)), "Column duplicates"
         assert len(set(mcols_sizes)) == 1,\
             "Matching columns must have the same sizes"
-        assert all(listify(tinfos[0][2])), \
-            "First table can't have empty matching columns"
-        # At least on matching column must exist but it's hard to miss
 
         try:
             tcols = []
@@ -743,7 +740,7 @@ def _create_statement(name, colnames, pkeys):
         Every type is numeric.
         Table name and column names are all lower cased
     """
-    pkeys = [f"primary key ({', '.join(pkeys)})"] if pkeys else []
+    pkeys = [f"primary key ({', '.join(listify(pkeys))})"] if pkeys else []
     # every col is numeric, this may not be so elegant but simple to handle.
     # If you want to change this, Think again
     schema = ', '.join([col.lower() + ' ' + 'numeric' for col in colnames] +
