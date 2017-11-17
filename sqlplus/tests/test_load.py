@@ -1,10 +1,5 @@
 import os
-import sys
 import unittest
-
-TESTPATH = os.path.dirname(os.path.realpath(__file__))
-PYPATH = os.path.join(TESTPATH, '..', '..')
-sys.path.append(PYPATH)
 
 from sqlplus import *
 
@@ -43,5 +38,6 @@ if __name__ == "__main__":
     try:
         unittest.main()
     finally:
+        TESTPATH = os.path.dirname(os.path.realpath(__file__))
         os.remove(os.path.join(TESTPATH, 'workspace', 'sample1.db'))
 

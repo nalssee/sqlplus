@@ -1,11 +1,5 @@
 import os
-import sys
 import unittest
-
-TESTPATH = os.path.dirname(os.path.realpath(__file__))
-PYPATH = os.path.join(TESTPATH, '..', '..')
-sys.path.append(PYPATH)
-
 from sqlplus import *
 
 
@@ -161,6 +155,13 @@ class TestRows(unittest.TestCase):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
+        # In somewhat explicit representation, i.e., using keyword args
+        lengths = []
+        for rs0 in Rows(rs3).roll(step=7, col='date', size=14,
+                                  nextfn=ymd('1 day', '%Y%m%d')):
+            lengths.append(len(rs0))
+        self.assertEqual(lengths, [14, 14, 14, 9, 2])
+
         # should be able to handle missing dates
         rs = Rows([Row(date=ymd(f'{i} months', '%Y%m')('200101'))
                    for i in range(10)])
@@ -303,7 +304,8 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.read('orders1', roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
+            for rs in q.read('orders1', roll={'size': 3, 'step': 2,
+                                              'col': 'date', 'nextfn': ymd('1 month', '%Y%m')}):
                 ls.append(len(rs))
             self.assertEqual(ls, [70, 74, 89, 44])
 

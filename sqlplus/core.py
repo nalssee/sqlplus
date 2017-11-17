@@ -230,10 +230,10 @@ class Rows:
         seqs = (gen(rs0, rs1) for rs0, rs1 in zip(rs0s[1:], rss))
         yield from zip(rs0s[0], *seqs)
 
-    def roll(self, period, jump, dcol, nextfn):
+    def roll(self, size=None, step=None, col=None, nextfn=None):
         "group rows over time, allowing overlaps"
-        self.order(dcol)
-        for ls in _roll(self.rows, period, jump, _build_keyfn(dcol), nextfn):
+        self.order(col)
+        for ls in _roll(self.rows, size, step, _build_keyfn(col), nextfn):
             yield self._newrows(ls)
 
     # destructive!!!
@@ -449,7 +449,13 @@ class SQLPlus:
         if group:
             order = group
         elif roll:
-            size, step, dcol, nextfn = roll
+            if isinstance(roll, dict):
+                # memorizing the order of four args wouldn't be easy
+                # You would see the doc anyway though.
+                size, step, dcol, nextfn = \
+                    roll['size'], roll['step'], roll['col'], roll['nextfn']
+            else:
+                size, step, dcol, nextfn = roll
             order = dcol
 
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
