@@ -330,6 +330,7 @@ class TestSQLPlus(unittest.TestCase):
             def bar(*args):
                 return sum(args)
 
+            #
             def foo1(rs):
                 sum = 0
                 for r in rs:
@@ -344,6 +345,8 @@ class TestSQLPlus(unittest.TestCase):
 
             c.register(foo)
             c.register(bar)
+            # Look up the def of 'foo1' and you'll see r.a and r.b
+            # Actual table doesn't have to have column a and b
             c.registerAgg(foo1, 'a, b')
             c.registerAgg(bar1)
 

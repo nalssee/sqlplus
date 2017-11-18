@@ -4,7 +4,6 @@ sqlite3 based utils for statistical analysis
 reeling off rows from db(sqlite3) and saving them back to db
 """
 import os
-import sys
 import re
 import sqlite3
 import copy
@@ -36,12 +35,8 @@ from .util import isnum, listify, peek_first, \
 warnings.filterwarnings('ignore')
 import statsmodels.api as sm
 
-__all__ = ['dbopen', 'Row', 'Rows']
-
 
 WORKSPACE = ''
-inf = float('inf')
-epsilon = sys.float_info.epsilon
 
 
 @contextmanager
@@ -120,8 +115,9 @@ class Row:
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-    # todo
-    # hasattr doesn't for properly
+
+    # TODO:
+    # hasattr doesn't work properly
     # you can't make it work by changing getters and setters
     # to an ordinary way. but it is slower
 
@@ -289,13 +285,12 @@ class Rows:
             result.append(r)
         return self._newrows(result)
 
-    #  allowing *cols is because this is going to be used in SQL
     def isnum(self, *cols):
         "another simplified filtering, numbers only"
         cols = listify(','.join(cols))
         return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
 
-    # not used often
+    # Won't be used often
     def istext(self, *cols):
         "another simplified filtering, texts(string) only"
         cols = listify(','.join(cols))
@@ -366,7 +361,6 @@ class Rows:
             cols = listify(cols)
             return pd.DataFrame([[r[col] for col in cols] for r in self.rows],
                                 columns=cols)
-
         else:
             cols = self.rows[0].columns
             seq = _safe_values(self.rows, cols)
@@ -436,7 +430,7 @@ class SQLPlus:
         self._cursor.execute(f'PRAGMA temp_store={temp_store}')
         self._cursor.execute('PRAGMA journal_mode=OFF')
 
-        # load some user-defined functions from helpers.py
+        # load some user-defined functions from util.py, istext unnecessary
         self.conn.create_function('isnum', -1, isnum)
 
     def read(self, tname, cols=None, where=None,
@@ -522,6 +516,9 @@ class SQLPlus:
     def registerAgg(self, fn, cols=None):
         clsname = 'Temp' + random_string()
         d = {}
+        # It helps to write the function if you assign names to args
+        # Each name doesn't have to correspond with the actual column names
+        # of the table you may want to apply in.
         if cols:
             cols = listify(cols)
 

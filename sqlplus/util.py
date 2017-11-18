@@ -121,6 +121,7 @@ def listify(x):
 
 
 # If the return value is True it is converted to 1 or 0 in sqlite3
+# istext is unncessary for validity check
 def isnum(*xs):
     "Tests if x is numeric"
     try:
