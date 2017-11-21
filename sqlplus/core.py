@@ -641,6 +641,7 @@ class SQLPlus:
         name = name or tinfos[0][0]
         # rewrite tinfos if there's missing matching columns
         mcols0 = tinfos[0][2]
+        # TODO: validity check, what if mcols is a list of more than 1 element?
         tinfos = [[tname, cols, mcols[0] if mcols else mcols0]
                   for tname, cols, *mcols in tinfos]
 
