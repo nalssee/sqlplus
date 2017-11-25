@@ -13,8 +13,8 @@ import inspect
 import numpy as np
 
 # TODO: figure this out if this causes troubles in macos
-# import matplotlib
-# matplotlib.use('TkAgg')
+import matplotlib
+matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
 
