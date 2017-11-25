@@ -366,6 +366,10 @@ class Rows:
             seq = _safe_values(self.rows, cols)
             return pd.DataFrame(list(seq), columns=cols)
 
+    # Only for debugging
+    def show(self):
+        print(self.df())
+
     # If Rows are preordered, it's possible to implement a faster version
     # Should I? No, most of end users are clumsy including me.
     # You may provide an option to let them assume the order of the rows
@@ -421,6 +425,8 @@ class SQLPlus:
         # you can avoid the problems but not worth it
         # if you really need performance then just use "run"
         self._cursor = self.conn.cursor()
+        # cursor for insertion only
+        self._insert_cursor = self.conn.cursor()
 
         # some performance tuning
         self._cursor.execute(f'PRAGMA cache_size={cache_size}')
@@ -469,6 +475,23 @@ class SQLPlus:
                 yield Rows(ls)
         else:
             yield from rows
+
+    def insert(self, r, name, cols=None, pkeys=None):
+        # Using this method might be highly ineffient
+        # but hopefully, wouldn't matter much for most of the cases
+        cols = cols if cols else r.columns
+        n = len(cols)
+
+        # You can't use self.tables because it uses the main cursor
+        query = self._insert_cursor.execute("""
+        select * from sqlite_master
+        where type='table'
+        """)
+        if name.lower() not in (row[1] for row in query):
+            self._insert_cursor.execute(_create_statement(name, cols, pkeys))
+
+        istmt = _insert_statement(name, n)
+        self._insert_cursor.execute(istmt, r.values)
 
     def write(self, seq, name, cols=None, pkeys=None):
         """

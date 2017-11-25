@@ -322,6 +322,16 @@ class TestSQLPlus(unittest.TestCase):
                              [70, 74, 89, 44])
             q.drop('orders1')
 
+    def test_insert(self):
+        with dbopen('sample.db') as c:
+            c.drop('foo')
+            for rs in c.read('orders',  group='shipperid'):
+                r = rs[0]
+                r.n = len(rs)
+                c.insert(r, 'foo')
+            rs = c.rows('foo')
+            self.assertEqual(rs['n'], [54, 74, 68])
+
     def test_register(self):
         with dbopen(':memory:') as c:
             def foo(x, y):
