@@ -148,8 +148,14 @@ class Rows:
         if isinstance(k, slice):
             # shallow copy for non-destructive slicing
             return self._newrows(self.rows[k])
-        # Now k is a column name
-        return [r[k] for r in self.rows]
+        # Now k is a column name(s)
+        k = listify(k)
+        if len(k) == 1:
+            k = k[0]
+            return [r[k] for r in self.rows]
+        else:
+            # exceptionally allow multiple columns for __getitem__
+            return [[r[k1] for k1 in k] for r in self.rows]
 
     def __setitem__(self, k, v):
         if isinstance(k, int) or isinstance(k, slice):

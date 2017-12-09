@@ -67,6 +67,7 @@ class TestRows(unittest.TestCase):
         seq = (Row(x=i, y=i + 1) for i in range(3))
         rs = Rows(seq)
         self.assertEqual(rs['x'], [0, 1, 2])
+        self.assertEqual(rs['x, y'], [[0, 1], [1, 2], [2, 3]])
 
         self.assertEqual(rs[0], rs.rows[0])
         rs1 = rs[0:2]

@@ -131,3 +131,29 @@ def read_fnguide(filename, cols):
                     r[c] = v
                 yield r
 
+
+def prepend_header(filename, header=None, drop=0):
+    """Drop n lines and prepend header
+
+    Args:
+        filename (str)
+        header (str)
+        drop (int)
+    """
+    filename = os.path.join(sqlplus.core.WORKSPACE, filename)
+    for no, line in enumerate(fileinput.input(filename, inplace=True)):
+        # it's meaningless to set drop to -1, -2, ...
+        if no == 0 and drop == 0:
+            if header:
+                print(header)
+            print(line, end='')
+        # replace
+        elif no + 1 == drop:
+            if header:
+                print(header)
+        elif no >= drop:
+            print(line, end='')
+        else:
+            # no + 1 < drop
+            continue
+

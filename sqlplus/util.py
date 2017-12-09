@@ -51,31 +51,6 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
-def prepend_header(filename, header=None, drop=0):
-    """Drop n lines and prepend header
-
-    Args:
-        filename (str)
-        header (str)
-        drop (int)
-    """
-    for no, line in enumerate(fileinput.input(filename, inplace=True)):
-        # it's meaningless to set drop to -1, -2, ...
-        if no == 0 and drop == 0:
-            if header:
-                print(header)
-            print(line, end='')
-        # replace
-        elif no + 1 == drop:
-            if header:
-                print(header)
-        elif no >= drop:
-            print(line, end='')
-        else:
-            # no + 1 < drop
-            continue
-
-
 def random_string(nchars=20):
     "Generates a random string of lengh 'n' with alphabets and digits. "
     chars = string.ascii_letters + string.digits
