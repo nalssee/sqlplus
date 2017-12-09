@@ -12,15 +12,8 @@ import inspect
 # import operator
 import numpy as np
 
-# TODO: figure this out if this causes troubles in macos
-import matplotlib
-matplotlib.use('TkAgg')
-
-import matplotlib.pyplot as plt
-
 import statistics as st
 import pandas as pd
-from pandas.plotting import scatter_matrix
 
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -321,11 +314,6 @@ class Rows:
                 rs.append(r)
             return Rows(rs)
         return res
-
-    def plot(self, cols=None):
-        cols = listify(cols) if cols else self[0].columns
-        scatter_matrix(self.isnum(*cols).df(cols))
-        plt.show()
 
     def truncate(self, col, limit=0.01):
         "Truncate extreme values, defalut 1 percent on both sides"
