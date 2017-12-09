@@ -2,6 +2,7 @@ import locale
 import os
 import csv
 import pandas as pd
+import fileinput
 
 from itertools import groupby
 
