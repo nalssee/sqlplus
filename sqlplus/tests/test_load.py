@@ -10,6 +10,13 @@ sys.path.append(PYPATH)
 from sqlplus import *
 
 class TestLoading(unittest.TestCase):
+    def test_prepend_header(self):
+        with dbopen('sample1.db') as q:
+            prepend_header('ex1data1.csv', 'population, profit')
+            q.write(read_csv('ex1data1.csv'), 'ex1data1')
+            self.assertEqual(len(q.rows('ex1data1')['population']), 97)
+            prepend_header('ex1data1.csv', drop=1)
+
     def test_load_csv(self):
         with dbopen('sample1.db') as q:
             q.write(read_csv('orders.csv'), 'orders')

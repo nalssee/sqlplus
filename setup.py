@@ -7,7 +7,7 @@ from setuptools import setup
 #     required = f.read().splitlines()
 
 setup(name='sqlplus',
-      version='0.1.9',
+      version='0.1.10',
       description='data work tools',
       url='https://github.com/nalssee/sqlplus.git',
       author='nalssee',
