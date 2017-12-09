@@ -239,10 +239,6 @@ class TestRows(unittest.TestCase):
             self.assertEqual(res[0].columns,
                              ['param', 'coef', 'stderr', 'tval', 'pval'])
 
-    # def test_plot(self):
-    #     with dbopen('sample.db') as q:
-    #         q.rows('orderdetails').plot()
-
     def test_truncate(self):
         with dbopen('sample.db') as q:
             rs = q.rows('products')
