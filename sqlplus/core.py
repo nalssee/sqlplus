@@ -403,7 +403,7 @@ class SQLPlus:
                 WORKSPACE = os.path.join(os.getcwd(), os.path.dirname())
             else:
                 # default workspace
-                WORKSPACE = os.path.join(os.getcwd(), 'workspace')
+                WORKSPACE = os.path.join(os.getcwd(), '')
 
         if not os.path.exists(WORKSPACE):
             os.makedirs(WORKSPACE)

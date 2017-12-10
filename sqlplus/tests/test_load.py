@@ -50,5 +50,5 @@ if __name__ == "__main__":
     try:
         unittest.main()
     finally:
-        os.remove(os.path.join(TESTPATH, 'workspace', 'sample1.db'))
+        os.remove(os.path.join(TESTPATH, 'sample1.db'))
 

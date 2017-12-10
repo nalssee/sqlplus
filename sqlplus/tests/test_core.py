@@ -8,6 +8,7 @@ sys.path.append(PYPATH)
 
 from sqlplus import *
 
+
 class TestRow(unittest.TestCase):
     def test_init(self):
         r = Row()
@@ -469,7 +470,7 @@ class TestSQLPlus(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    ws_path = os.path.join(os.getcwd(), 'workspace')
+    ws_path = os.path.join(os.getcwd(), '')
     if not os.path.isfile(os.path.join(ws_path, 'sample.db')):
         # First write csv files in workspace to sqlite db
         with dbopen('sample.db') as q:
