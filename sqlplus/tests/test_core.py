@@ -331,6 +331,11 @@ class TestSQLPlus(unittest.TestCase):
             self.assertEqual(rs['n'], [54, 74, 68])
 
     def test_register(self):
+        def product(xs):
+            result = 1
+            for x in xs: result *= x
+            return result
+
         with dbopen(':memory:') as c:
             def foo(x, y):
                 return x + y
@@ -339,23 +344,23 @@ class TestSQLPlus(unittest.TestCase):
                 return sum(args)
 
             #
-            def foo1(rs):
+            def foo1(a, b):
                 sum = 0
-                for r in rs:
-                    sum += r.a * r.b
+                for a1, b1 in zip(a, b):
+                    sum += a1 * b1
                 return sum
 
-            def bar1(rs):
+            def bar1(*args):
                 sum = 0
-                for r in rs:
-                    sum += r[0] * r[1]
+                for xs in zip(*args):
+                    sum += product(xs)
                 return sum
 
             c.register(foo)
             c.register(bar)
             # Look up the def of 'foo1' and you'll see r.a and r.b
             # Actual table doesn't have to have column a and b
-            c.registerAgg(foo1, 'a, b')
+            c.registerAgg(foo1)
             c.registerAgg(bar1)
 
             c.sql("create table test(i, j, x)")

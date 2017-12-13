@@ -54,9 +54,6 @@ class AggBuilder:
     def step(self, *args):
         self.rows.append(args)
 
-    def finalize(self):
-        return self.rows
-
 
 # Don't try to be smart, unless you really know well
 class Row:
@@ -530,47 +527,25 @@ class SQLPlus:
         self.conn.create_function(fn.__name__, n, newfn)
 
     # register aggregate function to sql
-    def registerAgg(self, fn, cols=None):
-        clsname = 'Temp' + random_string()
+    def registerAgg(self, fn):
         d = {}
-        # It helps to write the function if you assign names to args
-        # Each name doesn't have to correspond with the actual column names
-        # of the table you may want to apply in.
-        if cols:
-            cols = listify(cols)
 
-            def step(self, *args):
-                r = Row()
-                # should I?
-                # assert len(cols) == len(args)
-                for a, b in zip(cols, args):
-                    r[a] = b
-                self.rows.append(r)
-            d['step'] = step
+        def finalize(self):
+            try:
+                return fn(*(x for x in zip(*self.rows)))
+            except:
+                return ''
+        d['finalize'] = finalize
 
-            def finalize(self):
-                rs = AggBuilder.finalize(self)
-                try:
-                    return fn(Rows(rs))
-                except:
-                    return ''
+        args = []
+        for p in inspect.signature(fn).parameters.values():
+            if p.kind != p.VAR_POSITIONAL:
+                args.append(p)
+        n = len(args) if args else -1
 
-            d['finalize'] = finalize
-            self.conn.create_aggregate(fn.__name__, len(cols),
-                                       type(clsname, (AggBuilder,), d))
-        else:
-            def finalize(self):
-                rs = AggBuilder.finalize(self)
-                try:
-                    return fn(rs)
-                except:
-                    return ''
-            d['finalize'] = finalize
-            self.conn.create_aggregate(fn.__name__, -1,
-                                       type(clsname, (AggBuilder,), d))
-
-    def plot(self, tname, cols=None, where=None):
-        self.rows(tname, cols=cols, where=where).plot(cols)
+        clsname = 'Temp' + random_string()
+        self.conn.create_aggregate(fn.__name__, n,
+                                   type(clsname, (AggBuilder,), d))
 
     @property
     def tables(self):
