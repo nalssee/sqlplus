@@ -144,3 +144,14 @@ def star(val, pval, n=3):
     else:
         return val
 
+
+def is_consec(xs, step, fmt):
+    xs = list(xs)
+    for x1, x2 in zip(xs, xs[1:]):
+        if ymd(x1, step, fmt) != x2:
+            return False
+    return True
+
+
+
+

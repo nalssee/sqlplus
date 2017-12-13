@@ -467,6 +467,17 @@ class TestSQLPlus(unittest.TestCase):
             q.drop('orders1, orders2, orders3, orders4')
 
 
+#
+class TestUtil(unittest.TestCase):
+    def test_is_consec(self):
+        seq = []
+        for i in range(10):
+            seq.append(ymd('20010128', {'days': i}, '%Y%m%d'))
+        self.assertTrue(is_consec(seq, '1 day', '%Y%m%d'))
+        del seq[3]
+        self.assertFalse(is_consec(seq, '1 day', '%Y%m%d'))
+
+
 if __name__ == "__main__":
     ws_path = os.path.join(os.getcwd(), '')
     if not os.path.isfile(os.path.join(ws_path, 'sample.db')):
