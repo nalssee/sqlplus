@@ -8,6 +8,9 @@ sys.path.append(PYPATH)
 
 from sqlplus import *
 
+def addm(date, n):
+    return ymd(date, {'months': n}, '%Y%m')
+
 
 class TestRow(unittest.TestCase):
     def test_init(self):
@@ -128,53 +131,52 @@ class TestRows(unittest.TestCase):
     def test_roll(self):
         rs1 = []
         for year in range(2001, 2011):
-            rs1.append(Row(date=str(year)))
+            rs1.append(Row(date=year))
 
         lengths = []
-        for rs0 in Rows(rs1).roll(3, 2, 'date', ymd('1 year', '%Y')):
+        for rs0 in Rows(rs1).roll(3, 2, 'date'):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [3, 3, 3, 3, 2])
 
         rs2 = []
         start_month = '200101'
         for i in range(36):
-            rs2.append(Row(date=ymd(f'{i} months', '%Y%m')(start_month)))
+            rs2.append(Row(date=addm(start_month, i)))
 
         lengths = []
         for rs0 in Rows(rs2).where('date > "200103"')\
-                            .roll(12, 12, 'date', ymd('1 month', '%Y%m')):
+                            .roll(12, 12, 'date', lambda d: addm(d, 1)):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [12, 12, 9])
 
         lengths = []
         for rs0 in Rows(rs2).where("date > '200103'")\
-                            .roll(24, 12, 'date', ymd('1 month', '%Y%m')):
+                            .roll(24, 12, 'date', lambda d: addm(d, 1)):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [24, 21, 9])
 
         rs3 = []
         start_date = '20010101'
         for i in range(30):
-            rs3.append(Row(date=ymd(f'{i} days', '%Y%m%d')(start_date)))
+            rs3.append(Row(date=ymd(start_date, {'days': i}, '%Y%m%d')))
 
         lengths = []
-        for rs0 in Rows(rs3).roll(14, 7, 'date', ymd('1 day', '%Y%m%d')):
+        for rs0 in Rows(rs3).roll(14, 7, 'date', lambda d: ymd(d, '1 day', '%Y%m%d')):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
         # In somewhat explicit representation, i.e., using keyword args
         lengths = []
         for rs0 in Rows(rs3).roll(step=7, col='date', size=14,
-                                  nextfn=ymd('1 day', '%Y%m%d')):
+                                  nextfn=lambda d: ymd(d, '1 day', '%Y%m%d')):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
-        # should be able to handle missing dates
-        rs = Rows([Row(date=ymd(f'{i} months', '%Y%m')('200101'))
-                   for i in range(10)])
+        # # should be able to handle missing dates
+        rs = Rows([Row(date=addm('200101', i)) for i in range(10)])
         del rs[3]
         ls = [[int(x) for x in rs1['date']]
-              for rs1 in rs.roll(5, 4, 'date', ymd('1 month', '%Y%m'))]
+              for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1))]
         self.assertEqual(
             ls, [[200101, 200102, 200103, 200105],
                  [200105, 200106, 200107, 200108, 200109],
@@ -307,13 +309,7 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.read('orders1', roll={'size': 3, 'step': 2,
-                                              'col': 'date', 'nextfn': ymd('1 month', '%Y%m')}):
-                ls.append(len(rs))
-            self.assertEqual(ls, [70, 74, 89, 44])
-
-            ls = []
-            for rs in q.read('orders1', roll=(3, 2, 'date', ymd('1 month', '%Y%m'))):
+            for rs in q.read('orders1', roll=(3, 2, 'date')):
                 for rs1 in rs.group('shipperid'):
                     ls.append(len(rs1))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
@@ -411,7 +407,7 @@ class TestSQLPlus(unittest.TestCase):
 
             # testing reel
             ls = []
-            for rs in q.read('orders2', roll=(5, 2, 'date', ymd('1 month', '%Y%m'))):
+            for rs in q.read('orders2', roll=(5, 2, 'date')):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
@@ -422,21 +418,18 @@ class TestSQLPlus(unittest.TestCase):
             q.write(tseq, 'orders1', pkeys='date, customerid')
             self.assertEqual(len(q.rows('orders1')), 161)
 
+            q.register(addm)
+            q.new('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
+            q.new('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
+            q.new('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
             q.join(
                 ['orders1', 'date, customerid, orderid', 'date, customerid'],
-                ['orders1', 'orderid as orderid1',
-                 {'date': ymd('1 month', '%Y%m'), 'customerid': None}],
-                ['orders1', 'orderid as orderid2',
-                 {'date': ymd('2 months', '%Y%m'), 'customerid': None}],
-                ['orders1', 'orderid as orderid3',
-                 {'date': ymd('3 months', '%Y%m'), 'customerid': None}],
+                ['orders1_1', 'orderid as orderid1', 'd1, customerid'],
+                ['orders1_2', 'orderid as orderid2', 'd2, customerid'],
+                ['orders1_3', 'orderid as orderid3', 'd3, customerid'],
                 name='orders3'
             )
-
-            def addmonth(x, n):
-                return ymd(f'{n} months', '%Y%m')(x)
-
-            q.register(addmonth)
+            q.drop('orders1_1, orders1_2, orders1_3')
 
             q.new("""
             select a.date, a.customerid, a.orderid,
@@ -447,13 +440,13 @@ class TestSQLPlus(unittest.TestCase):
             from orders1 as a
 
             left join orders1 as b
-            on a.date = addmonth(b.date, 1) and a.customerid = b.customerid
+            on a.date = addm(b.date, 1) and a.customerid = b.customerid
 
             left join orders1 as c
-            on a.date = addmonth(c.date, 2) and a.customerid = c.customerid
+            on a.date = addm(c.date, 2) and a.customerid = c.customerid
 
             left join orders1 as d
-            on a.date = addmonth(d.date, 3) and a.customerid = d.customerid
+            on a.date = addm(d.date, 3) and a.customerid = d.customerid
             """, name='orders4')
 
             rs3 = q.rows('orders3')

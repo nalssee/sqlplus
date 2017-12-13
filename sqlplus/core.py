@@ -442,13 +442,7 @@ class SQLPlus:
         if group:
             order = group
         elif roll:
-            if isinstance(roll, dict):
-                # memorizing the order of four args wouldn't be easy
-                # You would see the doc anyway though.
-                size, step, dcol, nextfn = \
-                    roll['size'], roll['step'], roll['col'], roll['nextfn']
-            else:
-                size, step, dcol, nextfn = roll
+            size, step, dcol, *nextfn = roll
             order = dcol
 
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
@@ -462,6 +456,7 @@ class SQLPlus:
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
         elif roll:
+            nextfn = nextfn[0] if nextfn else None
             for ls in _roll(rows, size, step, _build_keyfn(dcol), nextfn):
                 yield Rows(ls)
         else:
@@ -617,9 +612,6 @@ class SQLPlus:
         # if name is not given first table name#
         # tinfo: [tname, cols, cols to match]
         # ['sample', 'col1, col2 as colx', 'col3, col4']
-        # or
-        # ['sample', 'col1, col2 as colx',
-        # {'date': ymd(3, '%Y%m'), 'col4': None}]
         def get_newcols(cols):
             # extract new column names
             # if there's any renaming
@@ -652,48 +644,27 @@ class SQLPlus:
         assert len(set(mcols_sizes)) == 1,\
             "Matching columns must have the same sizes"
 
-        try:
-            tcols = []
-            # write new temporary tables for performance
-            for tname, cols, mcols in tinfos:
-                if isinstance(mcols, dict):
-                    temp_tname = 'table_' + random_string()
+        tcols = []
+        # write new temporary tables for performance
+        for tname, cols, mcols in tinfos:
+            newcols = [tname + '.' + c for c in listify(cols)]
+            tcols.append((tname, newcols, listify(mcols)))
 
-                    def build_fn(mcols):
-                        def fn(r):
-                            for c, f in mcols.items():
-                                if f:
-                                    r[c] = f(r[c])
-                            return r
-                        return fn
-                    fn1 = build_fn(mcols)
-                    temp_seq = (fn1(r) for r in self.read(tname))
-                    self.write(temp_seq, temp_tname, pkeys=list(mcols))
-                else:
-                    temp_tname = tname
-                newcols = [temp_tname + '.' + c for c in listify(cols)]
-                tcols.append((temp_tname, newcols, listify(mcols)))
-
-            tname0, _, mcols0 = tcols[0]
-            join_clauses = []
-            for tname1, _, mcols1 in tcols[1:]:
-                eqs = []
-                for c0, c1 in zip(mcols0, mcols1):
-                    if c1:
-                        eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
-                join_clauses.append(f"""
-                left join {tname1}
-                on {' and '.join(eqs)}
-                """)
-            jcs = ' '.join(join_clauses)
-            allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
-            query = f"select {allcols} from {tname0} {jcs}"
-            self.new(query, name, pkeys)
-        finally:
-            # drop temporary tables
-            for (t0, _, _), (t1, _, _) in zip(tinfos, tcols):
-                if t0 != t1:
-                    self.drop(t1)
+        tname0, _, mcols0 = tcols[0]
+        join_clauses = []
+        for tname1, _, mcols1 in tcols[1:]:
+            eqs = []
+            for c0, c1 in zip(mcols0, mcols1):
+                if c1:
+                    eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
+            join_clauses.append(f"""
+            left join {tname1}
+            on {' and '.join(eqs)}
+            """)
+        jcs = ' '.join(join_clauses)
+        allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
+        query = f"select {allcols} from {tname0} {jcs}"
+        self.new(query, name, pkeys)
 
 
 def _safe_values(rows, cols):
@@ -811,7 +782,11 @@ def _roll(seq, period, jump, keyfn, nextfn):
                 # you must realize them first
                 yield list(sq)
 
-    gss = tee(chunk(seq), period)
+    def chunk_unsafe(seq):
+        for _, sq, in groupby(seq, keyfn):
+            yield list(sq)
+
+    gss = tee(chunk(seq) if nextfn else chunk_unsafe(seq), period)
     for i, gs in enumerate(gss):
         # consume
         for i1 in range(i):

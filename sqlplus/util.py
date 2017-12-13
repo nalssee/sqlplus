@@ -106,30 +106,14 @@ def isnum(*xs):
         return False
 
 
-def ymd(step, fmt='%Y%m%d'):
-    # ymd('3 months', '%Y%m')('198203') => '198206'
-    def add_datetime(n, unit):
-        def fn(date):
-            d1 = datetime.strptime(str(date), fmt) + relativedelta(**{unit: n})
-            d2 = d1.strftime(fmt)
-            return int(d2) if isinstance(date, int) else d2
-        return fn
-
-    if isinstance(step, str):
-        try:
-            n, unit = step.split()
-            n, unit = int(n), unit.lower()
-            if not unit.endswith('s'):
-                unit += 's'
-        # TODO: Wierd style
-        except Exception:
-            raise ValueError(f"Invalid format {step}")
-        return add_datetime(n, unit)
-
-    elif isinstance(step, int):
-        return lambda date: date + step
-    else:
-        raise ValueError(f"Invalid format {step}")
+def ymd(date, size, fmt):
+    if isinstance(size, str):
+        n, unit = size.split()
+        if not unit.endswith('s'):
+            unit = unit + 's'
+        size = {unit: int(n)}
+    d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
+    return d1.strftime(fmt)
 
 
 # Not so fast but general and quits if not all equal
