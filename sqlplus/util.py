@@ -113,7 +113,8 @@ def ymd(date, size, fmt):
             unit = unit + 's'
         size = {unit: int(n)}
     d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
-    return d1.strftime(fmt)
+    d2 = d1.strftime(fmt)
+    return int(d2) if isinstance(date, int) else d2
 
 
 # Not so fast but general and quits if not all equal
@@ -151,7 +152,6 @@ def is_consec(xs, step, fmt):
         if ymd(x1, step, fmt) != x2:
             return False
     return True
-
 
 
 
