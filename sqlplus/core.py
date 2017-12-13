@@ -302,20 +302,10 @@ class Rows:
         else:
             return st.mean(r[col] for r in self if isnum(r[col]))
 
-    def ols(self, model, rows=True):
+    def ols(self, model):
         y, *xs = parse_model(model)
         X = [[r[x] for x in xs] for r in self]
         res = sm.OLS(self[y], sm.add_constant(X)).fit()
-        if rows:
-            rs = []
-            for i, param in enumerate(['const'] + xs):
-                r = Row(param=param)
-                r.coef = res.params[i]
-                r.stderr = res.bse[i]
-                r.tval = res.tvalues[i]
-                r.pval = res.pvalues[i]
-                rs.append(r)
-            return Rows(rs)
         return res
 
     def truncate(self, col, limit=0.01):
