@@ -15,6 +15,7 @@ import numpy as np
 import statistics as st
 import pandas as pd
 
+from scipy.stats import ttest_1samp
 from collections import OrderedDict
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
@@ -22,7 +23,7 @@ from itertools import groupby, islice, chain, tee, \
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, ymd
+    parse_model, random_string, ymd, star
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -372,6 +373,12 @@ class Rows:
     # Only for debugging
     def show(self):
         print(self.df())
+
+    def ttest(self, col, n=3, popmean=0.0):
+        "simplified rep of tstat"
+        seq = self[col]
+        _, pval = ttest_1samp(seq, popmean)
+        return star(st.mean(seq), pval, n=n)
 
     def numbering(self, d, dep=False, prefix='pn_'):
         "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"

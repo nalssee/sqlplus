@@ -385,6 +385,10 @@ class TestRows(unittest.TestCase):
                     # Test not so sophisticated
                     self.assertTrue(st.stdev(xs) < 12)
 
+    def test_ttest(self):
+        rs = Rows(Row(a=i) for i in range(10))
+        self.assertEqual(rs.ttest('a'), '4.500***')
+
 
 # This should be defined in 'main' if you want to exploit multiple cores
 # in Windows, The function itself here is just a giberrish for testing
