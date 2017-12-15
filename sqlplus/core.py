@@ -9,7 +9,7 @@ import sqlite3
 import copy
 import warnings
 import inspect
-# import operator
+import operator
 import numpy as np
 
 import statistics as st
@@ -319,7 +319,7 @@ class Rows:
         for _, rs in groupby(self.order(keyfn), keyfn):
             yield self._newrows(list(rs))
 
-    def chunks(self, n):
+    def chunks(self, n, col=None, le=True):
         size = len(self)
         if isinstance(n, int):
             start = 0
@@ -332,12 +332,30 @@ class Rows:
                     val = self._newrows([])
                 yield val
                 start = end
-        else:
+        # n is a list of percentiles
+        elif not col:
             # then it is a list of percentiles for each chunk
             assert sum(n) <= 1, f"Sum of percentils for chunks must be <= 1.0"
             ns = [int(x * size) for x in accumulate(n)]
             for a, b in zip([0] + ns, ns):
                 yield self[a:b]
+        # n is a list of break points
+        else:
+            self.order(col)
+            size = len(self)
+            op = operator.le if le else operator.lt
+            start, end = 0, 0
+            for bp in n:
+                while op(self[end][col], bp) and end < size:
+                    end += 1
+                yield self[start:end]
+                start = end
+            yield self[end:]
+
+    def bps(self, percentiles, col):
+        "Breakpoints from percentages"
+        bs = pd.Series(self[col]).describe(percentiles)
+        return [bs[str(round(p * 100)) + '%'] for p in percentiles]
 
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.

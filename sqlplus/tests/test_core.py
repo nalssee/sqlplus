@@ -288,6 +288,23 @@ class TestRows(unittest.TestCase):
             # roughly the same
             self.assertEqual(len(c), int(n * 0.3) + 1)
 
+        rs = Rows(Row(a=i) for i in [1, 7, 3, 7])
+        xs = [x['a'] for x in rs.chunks([2, 5], 'a')]
+        self.assertEqual(xs, [[1], [3], [7, 7]])
+
+        xs = [x['a'] for x in rs.chunks([2, 2.5], 'a')]
+        self.assertEqual(xs, [[1], [], [3, 7, 7]])
+
+        xs = [x['a'] for x in rs.chunks([1, 3, 5], 'a')]
+        self.assertEqual(xs, [[1], [3], [], [7, 7]])
+
+        xs = [x['a'] for x in rs.chunks([1, 3, 5], 'a', le=False)]
+        self.assertEqual(xs, [[], [1], [3], [7, 7]])
+
+    def test_bps(self):
+        rs = Rows(Row(a=i) for i in range(1, 101))
+        self.assertEqual([int(x) for x in rs.bps([0.3, 0.7, 0.8], 'a')], [30, 70, 80])
+
     def test_df(self):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
