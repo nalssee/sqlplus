@@ -57,6 +57,15 @@ class TestRow(unittest.TestCase):
         del r1['b']
         self.assertEqual(r1.columns, [])
 
+# pns (portfolio numbering based on the first date, and assign the same for
+# all the follow up rows, since you hold the portfolio)
+def pns(rs, d, dcol, icol, dep=False):
+    fdate = rs[0][dcol]
+    rs0 = rs.where(f'{dcol}={fdate}')
+    rs1 = rs.where(f'{dcol}!={fdate}')
+    rs0.numbering(d, dep)
+    rs1.follow(rs0, icol, ['pn_' + x for x in list(d)])
+
 
 class TestRows(unittest.TestCase):
     def test_init(self):
@@ -284,6 +293,8 @@ class TestRows(unittest.TestCase):
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
 
+    # pns is a combination of numbering and follow
+    # test numbering and follow
     def test_numbering(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
@@ -294,7 +305,7 @@ class TestRows(unittest.TestCase):
             c.drop('tmpacc2')
             for rs in c.read('tmpacc1', where='isnum(asset)',
                              roll=(3, 3, 'yyyy')):
-                rs.numbering({'asset': 10}, dcol='yyyy', icol='id')
+                pns(rs, {'asset': 10}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset'), 'tmpacc2')
 
             for rs in c.read('tmpacc2', roll=(3, 3, 'yyyy')):
@@ -330,7 +341,7 @@ class TestRows(unittest.TestCase):
             c.drop('tmpacc2')
             for rs in c.read('tmpacc1', where='isnum(asset)',
                              roll=(8, 8, 'yyyy')):
-                rs.numbering({'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
+                pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
             import statistics as st
@@ -345,7 +356,7 @@ class TestRows(unittest.TestCase):
             c.drop('tmpacc2')
             for rs in c.read('tmpacc1', where='isnum(asset)',
                              roll=(8, 8, 'yyyy')):
-                rs.numbering({'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
+                pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
             for rs in c.read('tmpacc2', where='yyyy >= 1988', group='yyyy'):

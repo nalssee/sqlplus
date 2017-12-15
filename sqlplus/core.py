@@ -355,29 +355,8 @@ class Rows:
     def show(self):
         print(self.df())
 
-    # You hold the portfolios 99% of the time, so I hide 'pns'
-    def numbering(self, d, dcol=None, icol=None, dep=False, prefix='pn_'):
+    def numbering(self, d, dep=False, prefix='pn_'):
         "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
-        # initialize
-        for c in list(d):
-            self[prefix + c] = ''
-
-        # already ordered by date column, but...just in case
-        self.order(dcol)
-        fdate = self[0][dcol]
-        rs0 = self.where(lambda r: r[dcol] == fdate)
-
-        rs0._pns(d, dep, prefix)
-        # if there are other dates onward. number them according to the id
-
-        for rs1 in self.group(icol):
-            rs1.order(dcol)
-            for c in list(d):
-                rs1[prefix + c] = rs1[0][prefix + c]
-
-        return self
-
-    def _pns(self, d, dep=False, prefix='pn_'):
         d1 = {c: x if callable(x) else lambda rs: rs.chunks(x)
               for c, x in d.items()}
 
@@ -393,6 +372,23 @@ class Rows:
             for c, fn in d1.items():
                 for i, rs1 in enumerate(fn(self.isnum(c).order(c)), 1):
                     rs1[prefix + c] = i
+        # return value not so important
+        return self
+
+    # Copy column values from rs
+    def follow(self, rs, idcol, cols):
+        cols = listify(cols)
+        # initialize
+        for c in list(cols):
+            self[c] = ''
+        # Now they must have the same columns
+        rs1 = rs + self
+        # Python sort perserves orders
+        for rs2 in rs1.group(idcol):
+            for c in list(cols):
+                rs2[c] = rs2[0][c]
+        # side effects method, return value not so important
+        return self
 
 
 class SQLPlus:
