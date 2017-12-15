@@ -277,14 +277,15 @@ class Rows:
         return self._newrows([r for r in self
                               if all(isinstance(r[c], str) for c in cols)])
 
-    def avg(self, col, wcol=None):
-        # wcol: column for weight
+    def avg(self, col, wcol=None, n=3):
+        # wcol: column for weight,
+        # n: you may want to round up
         if wcol:
             rs = self.isnum(col, wcol)
             total = sum(r[wcol] for r in rs)
-            return sum(r[col] * r[wcol] for r in rs) / total
+            return round(sum(r[col] * r[wcol] for r in rs) / total, n)
         else:
-            return st.mean(r[col] for r in self if isnum(r[col]))
+            return round(st.mean(r[col] for r in self if isnum(r[col])), n)
 
     # Simple one but..
     def ols(self, model):
