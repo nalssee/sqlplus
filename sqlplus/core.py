@@ -54,6 +54,7 @@ class AggBuilder:
     def step(self, *args):
         self.rows.append(args)
 
+
 # Don't try to be smart, unless you really know well
 class Row:
     "mutable version of sqlite3.row"
@@ -338,7 +339,6 @@ class Rows:
             for a, b in zip([0] + ns, ns):
                 yield self[a:b]
 
-
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
     def df(self, cols=None):
@@ -494,10 +494,6 @@ class SQLPlus:
             self._insert_cursor.executemany(istmt, (r.values for r in rs))
         else:
             self._insert_cursor.execute(istmt, r0.values)
-
-
-
-
 
     def write(self, seq, name, cols=None, pkeys=None):
         """
@@ -821,4 +817,3 @@ def _roll(seq, period, jump, keyfn, nextfn):
         result = list(chain(*(x for x in xs if x)))
         if len(result) > 0:
             yield result
-

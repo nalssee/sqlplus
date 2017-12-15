@@ -3,8 +3,6 @@ Functions that are not specific to "Row" objects
 """
 import random
 import string
-import pandas as pd
-
 import concurrent.futures
 import multiprocessing as mp
 from itertools import chain, zip_longest
@@ -93,7 +91,7 @@ def isnum(*xs):
         for x in xs:
             float(x)
         return True
-    except Exception:
+    except:
         return False
 
 
