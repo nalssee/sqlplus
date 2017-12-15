@@ -417,6 +417,9 @@ class TestSQLPlus(unittest.TestCase):
             rs = c.rows('foo')
             self.assertEqual(rs['n'], [54, 74, 68])
 
+            # the following must not raise exceptions
+            c.insert(Rows([]), 'foo')
+
     def test_register(self):
         def product(xs):
             result = 1

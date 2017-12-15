@@ -472,6 +472,9 @@ class SQLPlus:
     def insert(self, rs, name, cols=None, pkeys=None):
         # Using this method might be highly ineffient
         # but hopefully, wouldn't matter much for most of the cases
+        if isinstance(rs, Rows) and len(rs) == 0:
+            return
+
         r0 = rs[0] if isinstance(rs, Rows) else rs
 
         cols = cols if cols else r0.columns
