@@ -13,17 +13,8 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def breakpoints(seq, percentiles):
-    "Breakpoints from percentages"
-    bs = pd.Series(seq).describe(percentiles)
-    return [bs[str(round(p * 100)) + '%'] for p in percentiles]
-
-
-def read_date(date, infmt, outfmt="%Y%m%d"):
-    """converts date formt
-
-    read_date('31Mar2013', '%d%b%Y')
-    """
+def dateconv(date, infmt, outfmt):
+    "date format conversion"
     return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
 
 
@@ -144,14 +135,6 @@ def star(val, pval, n=3):
         return val + '*'
     else:
         return val
-
-
-def is_consec(xs, step, fmt):
-    xs = list(xs)
-    for x1, x2 in zip(xs, xs[1:]):
-        if ymd(x1, step, fmt) != x2:
-            return False
-    return True
 
 
 

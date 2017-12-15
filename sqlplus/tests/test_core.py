@@ -128,6 +128,15 @@ class TestRows(unittest.TestCase):
             ns.append(len([x1 for x1 in x if x1 is None]))
         self.assertEqual(ns, [2, 1, 1, 0, 1, 0, 0, 0, 1])
 
+    def test_isconsec(self):
+        seq = []
+        for i in range(10):
+            seq.append(Row(date=ymd('20010128', {'days': i}, '%Y%m%d')))
+        seq = Rows(seq)
+        self.assertTrue(seq.isconsec('date', '1 day', '%Y%m%d'))
+        del seq[3]
+        self.assertFalse(seq.isconsec('date', '1 day', '%Y%m%d'))
+
     def test_roll(self):
         rs1 = []
         for year in range(2001, 2011):
@@ -206,15 +215,6 @@ class TestRows(unittest.TestCase):
             country="USA" and postalcode < 90000""")), 4)
             self.assertEqual(len(rs.where(lambda r: isnum(r.postalcode))), 66)
 
-    def test_corr(self):
-        with dbopen('sample.db') as q:
-            rs = q.rows('customers', where='isnum(postalcode)')
-            xs = rs.corr(cols='customerid, postalcode')
-            a = xs['customerid'][1]
-            self.assertEqual(round(a * 100), 25)
-            b = xs['postalcode'][0]
-            self.assertEqual(round(b * 100), 21)
-
     def test_isnum(self):
         with dbopen('sample.db') as q:
             rs1 = q.rows('customers', where='isnum(postalcode)')
@@ -238,9 +238,8 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as q:
             rs = q.rows('products')
             res = rs.ols('price ~ supplierid + categoryid')
-            self.assertEqual(len(res), 3)
-            self.assertEqual(res[0].columns,
-                             ['param', 'coef', 'stderr', 'tval', 'pval'])
+            self.assertEqual(len(res.params), 3)
+            self.assertEqual(len(res.resid), len(rs))
 
     def test_truncate(self):
         with dbopen('sample.db') as q:
@@ -263,25 +262,106 @@ class TestRows(unittest.TestCase):
             self.assertEqual(ls, [3, 2, 2, 9, 3, 2, 2, 11, 11,
                                   1, 3, 5, 1, 1, 2, 5, 2, 2, 7, 13, 4])
 
+    def test_chunks(self):
+        rs = Rows(Row(x=i) for i in range(10))
+        for rs1 in rs.chunks(2):
+            self.assertEqual(len(rs1), 5)
+        # even when there are not enough elements
+        ls = rs.chunks(15)
+        self.assertEqual(len(list(ls)), 15)
+
+        with dbopen('sample.db') as q:
+            rs = q.rows('orderdetails')
+            a, b, c = rs.chunks([0.3, 0.4, 0.3])
+            n = len(rs)
+            self.assertEqual(len(a), int(n * 0.3))
+            self.assertEqual(len(b), int(n * 0.4))
+            # roughly the same
+            self.assertEqual(len(c), int(n * 0.3) + 1)
+
     def test_df(self):
         with dbopen('sample.db') as q:
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
 
-    def test_pn(self):
-        with dbopen('sample.db') as q:
-            rs = q.rows('orderdetails')
-            bps = breakpoints(rs['quantity'], [0.3, 0.7])
-            rs.pn('quantity', bps)
-            self.assertEqual(len(rs.where('pn_quantity=1')), 132)
-            self.assertEqual(len(rs.where('pn_quantity=2')), 214)
-            self.assertEqual(len(rs.where('pn_quantity=3')), 172)
+    def test_numbering(self):
+        with dbopen('sample.db') as c:
+            # now you need yyyy column
+            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.new('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+
+            # oneway sorting
+            c.drop('tmpacc2')
+            for rs in c.read('tmpacc1', where='isnum(asset)',
+                             roll=(3, 3, 'yyyy')):
+                rs.numbering({'asset': 10}, dcol='yyyy', icol='id')
+                c.insert(rs.isnum('pn_asset'), 'tmpacc2')
+
+            for rs in c.read('tmpacc2', roll=(3, 3, 'yyyy')):
+                xs = [len(x) for x in rs.group('yyyy')]
+                # the first one must have the largest number of items
+                self.assertEqual(max(xs), xs[0])
+
+            # average them
+            c.drop('tmpaccavg')
+            for rs in c.read('tmpacc2', group='yyyy, pn_asset'):
+                r = Row()
+                r.date = rs[0].yyyy
+                r.pn_asset = rs[0].pn_asset
+                r.avgasset = rs.avg('asset')
+                c.insert(r, 'tmpaccavg')
+
+            # tests if pn numbering is correct!!
+            for rs in c.read('tmpaccavg', roll=(3, 3, 'date')):
+                fdate = rs[0]['date']
+                rs1 = rs.where(f'date={fdate}')
+                xs1 = rs1.order('pn_asset')['avgasset']
+                xs2 = rs1.order('avgasset')['avgasset']
+                self.assertEqual(xs1, xs2)
+
+            c.drop('tmpacc1, tmpacc2, tmpaccavg')
+
+    def test_numbering2d(self):
+        with dbopen('sample.db') as c:
+            # now you need yyyy column
+            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.new('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+
+            c.drop('tmpacc2')
+            for rs in c.read('tmpacc1', where='isnum(asset)',
+                             roll=(8, 8, 'yyyy')):
+                rs.numbering({'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
+                c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
+
+            import statistics as st
+            for rs in c.read('tmpacc2', where='yyyy >= 1988', group='yyyy'):
+                for i in range(1, 5):
+                    xs = []
+                    for j in range(1, 5):
+                        xs.append(len(rs.where(f'pn_asset={i} and pn_ppe={j}')))
+                    self.assertTrue(st.stdev(xs) >= 12)
+
+            # dependent sort
+            c.drop('tmpacc2')
+            for rs in c.read('tmpacc1', where='isnum(asset)',
+                             roll=(8, 8, 'yyyy')):
+                rs.numbering({'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
+                c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
+
+            for rs in c.read('tmpacc2', where='yyyy >= 1988', group='yyyy'):
+                for i in range(1, 5):
+                    xs = []
+                    for j in range(1, 5):
+                        xs.append(len(rs.where(f'pn_asset={i} and pn_ppe={j}')))
+                    # number of items ought to be about the same
+                    # Test not so sophisticated
+                    self.assertTrue(st.stdev(xs) < 12)
 
 
 # This should be defined in 'main' if you want to exploit multiple cores
 # in Windows, The function itself here is just a giberrish for testing
 def avg_id(rs):
-    r = Row(date=read_date(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
+    r = Row(date=dateconv(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
     r.orderid = round(rs.avg('orderid'))
     r.customerid = round(rs.avg('orderid'))
     r.employeeid = round(rs.avg('employeeid'))
@@ -293,7 +373,7 @@ class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
     def test_apply(self):
         def to_month(r):
-            r.date = read_date(r.orderdate, '%Y-%m-%d', '%Y%m')
+            r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
             return r
 
         with dbopen('sample.db') as q:
@@ -395,7 +475,7 @@ class TestSQLPlus(unittest.TestCase):
             q.drop('customers1')
 
             def to_month(r):
-                r.date = read_date(r.orderdate, '%Y-%m-%d', '%Y%m')
+                r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
                 return r
             tseq = (to_month(r) for r in q.read('orders'))
             q.write(tseq, 'orders1')
@@ -467,24 +547,17 @@ class TestSQLPlus(unittest.TestCase):
             q.drop('orders1, orders2, orders3, orders4')
 
 
-#
-class TestUtil(unittest.TestCase):
-    def test_is_consec(self):
-        seq = []
-        for i in range(10):
-            seq.append(ymd('20010128', {'days': i}, '%Y%m%d'))
-        self.assertTrue(is_consec(seq, '1 day', '%Y%m%d'))
-        del seq[3]
-        self.assertFalse(is_consec(seq, '1 day', '%Y%m%d'))
-
-
 if __name__ == "__main__":
     ws_path = os.path.join(os.getcwd(), '')
     if not os.path.isfile(os.path.join(ws_path, 'sample.db')):
         # First write csv files in workspace to sqlite db
         with dbopen('sample.db') as q:
             for f in os.listdir(ws_path):
-                if f.endswith('.csv') and f != 'acc1.csv':
-                    q.write(read_csv(f), f[:-4])
-
+                if f.endswith('.csv'):
+                    if f == 'acc1.csv':
+                        q.write(read_fnguide(f, 'asset, ppe, merch, cash, fin'), f[:-4])
+                    elif f == 'ex1data1.csv':
+                        pass
+                    else:
+                        q.write(read_csv(f), f[:-4])
     unittest.main()

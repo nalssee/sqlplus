@@ -18,11 +18,11 @@ import pandas as pd
 from collections import OrderedDict
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
-    zip_longest
+    zip_longest, accumulate
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string
+    parse_model, random_string, ymd
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -53,7 +53,6 @@ class AggBuilder:
 
     def step(self, *args):
         self.rows.append(args)
-
 
 # Don't try to be smart, unless you really know well
 class Row:
@@ -172,7 +171,9 @@ class Rows:
     def __add__(self, other):
         return self._newrows(self.rows + other.rows)
 
+    # You can write a function that sort of fills in missing date rows
     # zipping like left join, based on column
+    # I thought this could be useful...
     def lzip(self, col, *rss):
         """self and rss are all ordered(ascending) and
         none of them contains dups
@@ -224,6 +225,12 @@ class Rows:
         seqs = (gen(rs0, rs1) for rs0, rs1 in zip(rs0s[1:], rss))
         yield from zip(rs0s[0], *seqs)
 
+    def isconsec(self, col, step, fmt):
+        for x1, x2 in zip(self, self[1:]):
+            if ymd(x1[col], step, fmt) != x2[col]:
+                return False
+        return True
+
     def roll(self, size=None, step=None, col=None, nextfn=None):
         "group rows over time, allowing overlaps"
         self.order(col)
@@ -256,31 +263,6 @@ class Rows:
                                   if obj.evaluate(r._ordered_dict)])
         return self._newrows([r for r in self if pred(r)])
 
-    def corr(self, cols=None):
-        "Lower left: Pearson, Upper right: Spearman"
-        cols = cols or self[0].columns
-        df = self.df(cols)
-        corr1 = df.corr()
-        corr2 = df.corr('spearman')
-        columns = list(corr1.columns.values)
-        c0 = '_'
-
-        lcorr1 = corr1.values.tolist()
-        lcorr2 = corr2.values.tolist()
-        for i in range(len(columns)):
-            for j in range(i):
-                lcorr2[i][j] = lcorr1[i][j]
-        for i in range(len(columns)):
-            lcorr2[i][i] = ''
-        result = []
-        for c, ls in zip(columns, lcorr2):
-            r = Row()
-            r[c0] = c
-            for c, x in zip(columns, ls):
-                r[c] = x
-            result.append(r)
-        return self._newrows(result)
-
     def isnum(self, *cols):
         "another simplified filtering, numbers only"
         cols = listify(','.join(cols))
@@ -302,6 +284,7 @@ class Rows:
         else:
             return st.mean(r[col] for r in self if isnum(r[col]))
 
+    # Simple one but..
     def ols(self, model):
         y, *xs = parse_model(model)
         X = [[r[x] for x in xs] for r in self]
@@ -335,6 +318,27 @@ class Rows:
         for _, rs in groupby(self.order(keyfn), keyfn):
             yield self._newrows(list(rs))
 
+    def chunks(self, n):
+        size = len(self)
+        if isinstance(n, int):
+            start = 0
+            for i in range(1, n + 1):
+                end = int((size * i) / n)
+                # must yield anyway
+                try:
+                    val = self[start:end]
+                except:
+                    val = self._newrows([])
+                yield val
+                start = end
+        else:
+            # then it is a list of percentiles for each chunk
+            assert sum(n) <= 1, f"Sum of percentils for chunks must be <= 1.0"
+            ns = [int(x * size) for x in accumulate(n)]
+            for a, b in zip([0] + ns, ns):
+                yield self[a:b]
+
+
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
     def df(self, cols=None):
@@ -351,27 +355,44 @@ class Rows:
     def show(self):
         print(self.df())
 
-    # If Rows are preordered, it's possible to implement a faster version
-    # Should I? No, most of end users are clumsy including me.
-    # You may provide an option to let them assume the order of the rows
-    # but it makes matters complicated Just leave it as is
-    def pn(self, col, bps, pncol=None):
-        """"Assign portfolio number using the given breakpoints
+    # You hold the portfolios 99% of the time, so I hide 'pns'
+    def numbering(self, d, dcol=None, icol=None, dep=False, prefix='pn_'):
+        "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
+        # initialize
+        for c in list(d):
+            self[prefix + c] = ''
 
-        No need to order Rows first
-        """
-        def loc(x, bps):
-            for i, b in enumerate(bps):
-                if x < b:
-                    return i + 1
-            return len(bps) + 1
+        # already ordered by date column, but...just in case
+        self.order(dcol)
+        fdate = self[0][dcol]
+        rs0 = self.where(lambda r: r[dcol] == fdate)
 
-        if not pncol:
-            pncol = 'pn_' + col
-        self[pncol] = ''
-        for r in self.rows:
-            r[pncol] = loc(r[col], bps)
+        rs0._pns(d, dep, prefix)
+        # if there are other dates onward. number them according to the id
+
+        for rs1 in self.group(icol):
+            rs1.order(dcol)
+            for c in list(d):
+                rs1[prefix + c] = rs1[0][prefix + c]
+
         return self
+
+    def _pns(self, d, dep=False, prefix='pn_'):
+        d1 = {c: x if callable(x) else lambda rs: rs.chunks(x)
+              for c, x in d.items()}
+
+        def rec(rs, cs):
+            if len(cs) != 0:
+                c = cs[0]
+                for i, rs1 in enumerate(d1[c](rs.isnum(c).order(c)), 1):
+                    rs1[prefix + c] = i
+                    rec(rs1, cs[1:])
+        if dep:
+            rec(self, list(d1))
+        else:
+            for c, fn in d1.items():
+                for i, rs1 in enumerate(fn(self.isnum(c).order(c)), 1):
+                    rs1[prefix + c] = i
 
 
 class SQLPlus:
@@ -452,12 +473,15 @@ class SQLPlus:
         else:
             yield from rows
 
-    def insert(self, r, name, cols=None, pkeys=None):
+    def insert(self, rs, name, cols=None, pkeys=None):
         # Using this method might be highly ineffient
         # but hopefully, wouldn't matter much for most of the cases
-        cols = cols if cols else r.columns
+        r0 = rs[0] if isinstance(rs, Rows) else rs
+
+        cols = cols if cols else r0.columns
         n = len(cols)
 
+        # create a table if not exists
         # You can't use self.tables because it uses the main cursor
         query = self._insert_cursor.execute("""
         select * from sqlite_master
@@ -467,7 +491,14 @@ class SQLPlus:
             self._insert_cursor.execute(_create_statement(name, cols, pkeys))
 
         istmt = _insert_statement(name, n)
-        self._insert_cursor.execute(istmt, r.values)
+        if isinstance(rs, Rows):
+            self._insert_cursor.executemany(istmt, (r.values for r in rs))
+        else:
+            self._insert_cursor.execute(istmt, r0.values)
+
+
+
+
 
     def write(self, seq, name, cols=None, pkeys=None):
         """
@@ -497,7 +528,7 @@ class SQLPlus:
             tempcur.close()
 
     # register function to sql
-    def register(self, fn):
+    def register(self, fn, name=None):
         def newfn(*args):
             try:
                 return fn(*args)
@@ -509,10 +540,11 @@ class SQLPlus:
             if p.kind != p.VAR_POSITIONAL:
                 args.append(p)
         n = len(args) if args else -1
-        self.conn.create_function(fn.__name__, n, newfn)
+        name = name or fn.__name__
+        self.conn.create_function(name, n, newfn)
 
     # register aggregate function to sql
-    def registerAgg(self, fn):
+    def registerAgg(self, fn, name=None):
         d = {}
 
         def finalize(self):
@@ -529,6 +561,7 @@ class SQLPlus:
         n = len(args) if args else -1
 
         clsname = 'Temp' + random_string()
+        name = name or fn.__name__
         self.conn.create_aggregate(fn.__name__, n,
                                    type(clsname, (AggBuilder,), d))
 
