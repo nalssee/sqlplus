@@ -643,7 +643,7 @@ class SQLPlus:
         pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
         return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
-    def new(self, query, name=None, pkeys=None):
+    def newtable(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
         """
         temp_name = 'table_' + random_string()
@@ -716,7 +716,7 @@ class SQLPlus:
         jcs = ' '.join(join_clauses)
         allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
         query = f"select {allcols} from {tname0} {jcs}"
-        self.new(query, name, pkeys)
+        self.newtable(query, name, pkeys)
 
 
 def _safe_values(rows, cols):

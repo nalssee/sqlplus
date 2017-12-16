@@ -316,7 +316,7 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as c:
             # now you need yyyy column
             c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
-            c.new('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+            c.newtable('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             # oneway sorting
             c.drop('tmpacc2')
@@ -353,7 +353,7 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as c:
             # now you need yyyy column
             c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
-            c.new('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+            c.newtable('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
@@ -482,12 +482,12 @@ class TestSQLPlus(unittest.TestCase):
             c.sql("insert into test values (20,'x', 'c')")
             c.sql("insert into test values (20,-1.2, 'd')")
 
-            c.new("select foo(i, j) as val1, bar(i, j) as val2 from test",
-                  'test1')
+            c.newtable("select foo(i, j) as val1, bar(i, j) as val2 from test",
+                       'test1')
             self.assertEqual(c.rows('test1')['val1'], [4, 23, 8, 24, '', 18.8])
             self.assertEqual(c.rows('test1')['val2'], [4, 23, 8, 24, '', 18.8])
 
-            c.new("""
+            c.newtable("""
             select foo1(i, j) as val1, bar1(i, j) as val2 from test group by x
             """, 'test2')
             self.assertEqual(c.rows('test2')['val1'], [98, 42, '', -24.0])
@@ -533,9 +533,9 @@ class TestSQLPlus(unittest.TestCase):
             self.assertEqual(len(q.rows('orders2')), 161)
 
             q.register(addm)
-            q.new('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
-            q.new('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
-            q.new('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
+            q.newtable('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
+            q.newtable('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
+            q.newtable('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
             q.join(
                 ['orders1', 'date, customerid, orderid', 'date, customerid'],
                 ['orders1_1', 'orderid as orderid1', 'd1, customerid'],
@@ -545,7 +545,7 @@ class TestSQLPlus(unittest.TestCase):
             )
             q.drop('orders1_1, orders1_2, orders1_3')
 
-            q.new("""
+            q.newtable("""
             select a.date, a.customerid, a.orderid,
             b.orderid as orderid1,
             c.orderid as orderid2,
