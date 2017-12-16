@@ -11,10 +11,11 @@ import warnings
 import inspect
 import operator
 import numpy as np
-
+import csv
 import statistics as st
 import pandas as pd
 
+from sas7bdat import SAS7BDAT
 from scipy.stats import ttest_1samp
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -464,8 +465,8 @@ class SQLPlus:
         # load some user-defined functions from util.py, istext unnecessary
         self.conn.create_function('isnum', -1, isnum)
 
-    def read(self, tname, cols=None, where=None,
-             order=None, group=None, roll=None):
+    def fetch(self, tname, cols=None, where=None,
+              order=None, group=None, roll=None):
         """Generates a sequence of rows from a table.
         """
         # At most one among order, group and roll
@@ -496,58 +497,64 @@ class SQLPlus:
         else:
             yield from rows
 
-    def insert(self, rs, name, cols=None, pkeys=None):
-        # Using this method might be highly ineffient
-        # but hopefully, wouldn't matter much for most of the cases
-        if isinstance(rs, Rows) and len(rs) == 0:
-            return
+    def insert(self, rs, name, overwrite=False, pkeys=None):
+        # rs: Row, Rows, A seq of Row(s)
+        if isinstance(rs, Row):
+            r0 = rs
+        elif isinstance(rs, Rows):
+            if len(rs) == 0:
+                return
+            else:
+                r0 = rs[0]
+        else:
+            try:
+                r0, rs = peek_first(rs)
+            except:
+                # empty sequence
+                return
 
-        r0 = rs[0] if isinstance(rs, Rows) else rs
-
-        cols = cols if cols else r0.columns
+        cols = r0.columns
         n = len(cols)
 
-        # create a table if not exists
-        # You can't use self.tables because it uses the main cursor
-        query = self._insert_cursor.execute("""
-        select * from sqlite_master
-        where type='table'
-        """)
-        if name.lower() not in (row[1] for row in query):
-            self._insert_cursor.execute(_create_statement(name, cols, pkeys))
-
-        istmt = _insert_statement(name, n)
-        if isinstance(rs, Rows):
-            self._insert_cursor.executemany(istmt, (r.values for r in rs))
-        else:
-            self._insert_cursor.execute(istmt, r0.values)
-
-    def write(self, seq, name, cols=None, pkeys=None):
-        """
-        """
-        def flatten(seq):
-            for x in seq:
-                try:
-                    yield from x
-                except:
-                    yield x
-
-        temp_name = 'table_' + random_string(10)
-        seq1 = (r for r in flatten(seq))
-
-        row0, seq2 = peek_first(seq1)
-        # if cols not specified row0 must be an instance of Row
-        cols = listify(cols) if cols else row0.columns
-        seq_values = _safe_values(seq2, cols) \
-            if isinstance(row0, Row) else seq2
+        name0 = name
+        name1 = 'temp_' + random_string(20) if overwrite else name
 
         try:
-            # you need temporary cursor.
-            tempcur = self.conn.cursor()
-            _sqlite3_save(tempcur, seq_values, temp_name, cols, pkeys)
+            # create a table if not exists
+            # You can't use self.tables because it uses the main cursor
+            query = self._insert_cursor.execute("""
+            select * from sqlite_master where type='table'
+            """)
+            if name1.lower() not in (row[1] for row in query):
+                self._insert_cursor.execute(
+                    _create_statement(name1, cols, pkeys))
+
+            istmt = _insert_statement(name1, n)
+            if isinstance(rs, Row):
+                self._insert_cursor.execute(istmt, r0.values)
+            else:
+                self._insert_cursor.executemany(istmt, (r.values for r in rs))
         finally:
-            self.rename(temp_name, name)
-            tempcur.close()
+            if name0 != name1:
+                self.rename(name1, name0)
+
+    def write(self, filename, name=None, encoding='utf-8', pkeys=None):
+        """
+        """
+        fn, ext = os.path.splitext(filename)
+
+        if ext == '.csv':
+            seq = _read_csv(filename, encoding)
+        elif ext == '.xlsx':
+            seq = _read_excel(filename)
+        elif ext == '.sas7bdat':
+            seq = _read_sas(filename)
+        else:
+            raise ValueError('Unknown file extension', ext)
+
+        name = name or fn
+        self.drop(name)
+        self.insert(seq, name, True, pkeys)
 
     # register function to sql
     def register(self, fn, name=None):
@@ -566,7 +573,7 @@ class SQLPlus:
         self.conn.create_function(name, n, newfn)
 
     # register aggregate function to sql
-    def registerAgg(self, fn, name=None):
+    def register_agg(self, fn, name=None):
         d = {}
 
         def finalize(self):
@@ -610,7 +617,7 @@ class SQLPlus:
         return self._cursor.execute(query)
 
     def rows(self, tname, cols=None, where=None, order=None):
-        return Rows(self.read(tname, cols, where, order))
+        return Rows(self.fetch(tname, cols, where, order))
 
     def df(self, tname, cols=None, where=None, order=None):
         return self.rows(tname, cols, where, order).df(cols)
@@ -776,16 +783,6 @@ def _build_query(tname, cols=None, where=None, order=None):
     return f'select {cols} from {tname} {where} {order}'
 
 
-def _sqlite3_save(cursor, srows, table_name, column_names, pkeys):
-    "saves sqlite3.Row instances to db"
-    cursor.execute(_create_statement(table_name, column_names, pkeys))
-    istmt = _insert_statement(table_name, len(column_names))
-    try:
-        cursor.executemany(istmt, srows)
-    except:
-        raise Exception("Trying to insert invaid Values to DB")
-
-
 # sequence row values to rows
 def _build_rows(seq_values, cols):
     "build rows from an iterator of values"
@@ -844,3 +841,63 @@ def _roll(seq, period, jump, keyfn, nextfn):
         result = list(chain(*(x for x in xs if x)))
         if len(result) > 0:
             yield result
+
+
+def _read_csv(filename, encoding='utf-8'):
+    "Loads well-formed csv file, 1 header line and the rest is data "
+    def is_empty_line(line):
+        """Tests if a list of strings is empty for example ["", ""] or []
+        """
+        return [x for x in line if x.strip() != ""] == []
+
+    with open(os.path.join(WORKSPACE, filename),
+              encoding=encoding) as fin:
+        first_line = fin.readline()[:-1]
+        columns = listify(first_line)
+        ncol = len(columns)
+
+        # reader = csv.reader(fin)
+        # NULL byte error handling
+        reader = csv.reader(x.replace('\0', '') for x in fin)
+        for line_no, line in enumerate(reader, 2):
+            if len(line) != ncol:
+                if is_empty_line(line):
+                    continue
+                raise ValueError(
+                    """%s at line %s column count not matched %s != %s: %s
+                    """ % (filename, line_no, ncol, len(line), line))
+            row1 = Row()
+            for col, val in zip(columns, line):
+                row1[col] = val
+            yield row1
+
+
+def _read_sas(filename):
+    filename = os.path.join(WORKSPACE, filename)
+    with SAS7BDAT(filename) as f:
+        reader = f.readlines()
+        # lower case
+        header = [x.lower() for x in next(reader)]
+        for line in reader:
+            r = Row()
+            for k, v in zip(header, line):
+                r[k] = v
+            yield r
+
+
+# this could be more complex but should it be?
+def _read_excel(filename):
+    def read_df(df):
+        cols = df.columns
+        for i, r in df.iterrows():
+            r0 = Row()
+            for c, v in zip(cols, (r[c] for c in cols)):
+                r0[c] = str(v)
+            yield r0
+
+    filename = os.path.join(WORKSPACE, filename)
+    # it's OK. Excel files are small
+    df = pd.read_excel(filename)
+    yield from read_df(df)
+
+

@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("filename", type=str,
+                    help="filename to prepend header or to drop some lines or both")
+parser.add_argument("-l", "--line", type=str,
+                    help="header to prepend")
+parser.add_argument("-d", "--drop", type=int,
+                    help="number of lines to drop")
+
+
+args = parser.parse_args()
+filename = args.filename
+header = args.line
+drop = args.drop or 0
+
+if header:
+    print(header)
+
+with open(filename) as f:
+    for no, line in enumerate(f):
+        if no >= drop:
+            print(line)
+

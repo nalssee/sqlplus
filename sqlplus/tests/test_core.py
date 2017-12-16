@@ -202,8 +202,8 @@ class TestRows(unittest.TestCase):
 
     def test_order(self):
         with dbopen('sample.db') as q:
-            seq = (rs[0] for rs in q.read('customers', group='country'))
-            q.write(seq, 'c1')
+            seq = (rs[0] for rs in q.fetch('customers', group='country'))
+            q.insert(seq, 'c1')
             countries = q.rows('c1').order('country', reverse=True)['country']
             self.assertEqual(len(countries), 21)
             self.assertEqual(countries[:3], ['Venezuela', 'USA', 'UK'])
@@ -320,19 +320,19 @@ class TestRows(unittest.TestCase):
 
             # oneway sorting
             c.drop('tmpacc2')
-            for rs in c.read('tmpacc1', where='isnum(asset)',
+            for rs in c.fetch('tmpacc1', where='isnum(asset)',
                              roll=(3, 3, 'yyyy')):
                 pns(rs, {'asset': 10}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset'), 'tmpacc2')
 
-            for rs in c.read('tmpacc2', roll=(3, 3, 'yyyy')):
+            for rs in c.fetch('tmpacc2', roll=(3, 3, 'yyyy')):
                 xs = [len(x) for x in rs.group('yyyy')]
                 # the first one must have the largest number of items
                 self.assertEqual(max(xs), xs[0])
 
             # average them
             c.drop('tmpaccavg')
-            for rs in c.read('tmpacc2', group='yyyy, pn_asset'):
+            for rs in c.fetch('tmpacc2', group='yyyy, pn_asset'):
                 r = Row()
                 r.date = rs[0].yyyy
                 r.pn_asset = rs[0].pn_asset
@@ -340,7 +340,7 @@ class TestRows(unittest.TestCase):
                 c.insert(r, 'tmpaccavg')
 
             # tests if pn numbering is correct!!
-            for rs in c.read('tmpaccavg', roll=(3, 3, 'date')):
+            for rs in c.fetch('tmpaccavg', roll=(3, 3, 'date')):
                 fdate = rs[0]['date']
                 rs1 = rs.where(f'date={fdate}')
                 xs1 = rs1.order('pn_asset')['avgasset']
@@ -356,13 +356,13 @@ class TestRows(unittest.TestCase):
             c.new('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             c.drop('tmpacc2')
-            for rs in c.read('tmpacc1', where='isnum(asset)',
+            for rs in c.fetch('tmpacc1', where='isnum(asset)',
                              roll=(8, 8, 'yyyy')):
                 pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
             import statistics as st
-            for rs in c.read('tmpacc2', where='yyyy >= 1988', group='yyyy'):
+            for rs in c.fetch('tmpacc2', where='yyyy >= 1988', group='yyyy'):
                 for i in range(1, 5):
                     xs = []
                     for j in range(1, 5):
@@ -371,12 +371,12 @@ class TestRows(unittest.TestCase):
 
             # dependent sort
             c.drop('tmpacc2')
-            for rs in c.read('tmpacc1', where='isnum(asset)',
+            for rs in c.fetch('tmpacc1', where='isnum(asset)',
                              roll=(8, 8, 'yyyy')):
                 pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
-            for rs in c.read('tmpacc2', where='yyyy >= 1988', group='yyyy'):
+            for rs in c.fetch('tmpacc2', where='yyyy >= 1988', group='yyyy'):
                 for i in range(1, 5):
                     xs = []
                     for j in range(1, 5):
@@ -409,11 +409,11 @@ class TestSQLPlus(unittest.TestCase):
             return r
 
         with dbopen('sample.db') as q:
-            tseq = (to_month(r) for r in q.read('orders'))
-            q.write(tseq, 'orders1')
+            tseq = (to_month(r) for r in q.fetch('orders'))
+            q.insert(tseq, 'orders1')
 
             ls = []
-            for rs in q.read('orders1', group='date'):
+            for rs in q.fetch('orders1', group='date'):
                 ls.append(len(rs))
 
             self.assertEqual(ls, [22, 25, 23, 26, 25, 31, 33, 11])
@@ -421,7 +421,7 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.read('orders1', roll=(3, 2, 'date')):
+            for rs in q.fetch('orders1', roll=(3, 2, 'date')):
                 for rs1 in rs.group('shipperid'):
                     ls.append(len(rs1))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
@@ -431,7 +431,7 @@ class TestSQLPlus(unittest.TestCase):
     def test_insert(self):
         with dbopen('sample.db') as c:
             c.drop('foo')
-            for rs in c.read('orders',  group='shipperid'):
+            for rs in c.fetch('orders',  group='shipperid'):
                 r = rs[0]
                 r.n = len(rs)
                 c.insert(r, 'foo')
@@ -471,8 +471,8 @@ class TestSQLPlus(unittest.TestCase):
             c.register(bar)
             # Look up the def of 'foo1' and you'll see r.a and r.b
             # Actual table doesn't have to have column a and b
-            c.registerAgg(foo1)
-            c.registerAgg(bar1)
+            c.register_agg(foo1)
+            c.register_agg(bar1)
 
             c.sql("create table test(i, j, x)")
             c.sql("insert into test values (1, 3,'a')")
@@ -512,26 +512,25 @@ class TestSQLPlus(unittest.TestCase):
             def to_month(r):
                 r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
                 return r
-            tseq = (to_month(r) for r in q.read('orders'))
-            q.write(tseq, 'orders1')
+            tseq = (to_month(r) for r in q.fetch('orders'))
+            q.insert(tseq, 'orders1', True)
             # There's no benefits in using multiple cores
             # You should know what you are doing.
 
-            tseq = pmap(avg_id, q.read('orders1', group='date'), max_workers=2)
-            q.write(tseq, 'orders2')
+            tseq = pmap(avg_id, q.fetch('orders1', group='date'), max_workers=2)
+            q.insert(tseq, 'orders2', True)
 
             # testing reel
             ls = []
-            for rs in q.read('orders2', roll=(5, 2, 'date')):
+            for rs in q.fetch('orders2', roll=(5, 2, 'date')):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
             self.assertEqual(len(q.rows('orders1')), 196)
 
-            tseq = (rs[0] for rs in q.read('orders1', group='date, customerid'))
-
-            q.write(tseq, 'orders1', pkeys='date, customerid')
-            self.assertEqual(len(q.rows('orders1')), 161)
+            tseq = (rs[0] for rs in q.fetch('orders1', group='date, customerid'))
+            q.insert(tseq, 'orders2', True, pkeys='date, customerid')
+            self.assertEqual(len(q.rows('orders2')), 161)
 
             q.register(addm)
             q.new('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
@@ -567,32 +566,31 @@ class TestSQLPlus(unittest.TestCase):
             rs3 = q.rows('orders3')
             rs4 = q.rows('orders4')
 
-            # primary keys check
-            for r in q.sql('pragma table_info(orders3)'):
-                if r[1] == 'date':
-                    self.assertEqual(r[5], 1)
-                elif r[1] == 'customerid':
-                    self.assertEqual(r[5], 2)
-                else:
-                    self.assertEqual(r[5], 0)
-
             for r3, r4 in zip(rs3, rs4):
                 self.assertEqual(r3.values, r4.values)
 
-            q.drop('orders1, orders2, orders3, orders4')
+
+class TestMisc(unittest.TestCase):
+    def test_load_excel(self):
+        with dbopen('sample.db') as c:
+            c.write('orders.xlsx', 'orders_temp')
+            # You may see some surprises because
+            # read_excel uses pandas way of reading excel files
+            # q.rows('orders1').show()
+            self.assertEqual(len(c.rows('orders_temp')), 196)
+
+    def test_sas(self):
+        with dbopen('sample.db') as c:
+            c.write('ff5_ew_mine.sas7bdat')
+            self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
 
 
 if __name__ == "__main__":
     ws_path = os.path.join(os.getcwd(), '')
-    if not os.path.isfile(os.path.join(ws_path, 'sample.db')):
-        # First write csv files in workspace to sqlite db
-        with dbopen('sample.db') as q:
-            for f in os.listdir(ws_path):
-                if f.endswith('.csv'):
-                    if f == 'acc1.csv':
-                        q.write(read_fnguide(f, 'asset, ppe, merch, cash, fin'), f[:-4])
-                    elif f == 'ex1data1.csv':
-                        pass
-                    else:
-                        q.write(read_csv(f), f[:-4])
+    os.remove(os.path.join(ws_path, 'sample.db'))
+    # First write csv files in workspace to sqlite db
+    with dbopen('sample.db') as c:
+        for f in os.listdir(ws_path):
+            if f.endswith('.csv'):
+                c.write(f)
     unittest.main()

@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sqlplus',
-      version='0.2.1',
+      version='0.2.2',
       description='data work tools',
       url='https://github.com/nalssee/sqlplus.git',
       author='nalssee',
@@ -14,4 +14,5 @@ setup(name='sqlplus',
           'sas7bdat',
           'xlrd'
       ],
+      scripts=['bin/prepend', 'bin/fnguide'],
       zip_safe=False)

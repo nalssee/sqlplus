@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+
+
+import argparse
+import os
+import locale
+import csv
+
+from itertools import groupby
+from sqlplus import grouper
+from sqlplus import util
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("filename", type=str,
+                    help="FnGuide filename")
+parser.add_argument("-c", "--columns", type=str,
+                    help="column names for csv, i.e., header")
+
+args = parser.parse_args()
+filename = args.filename
+cols = args.columns
+
+if os.name == 'nt':
+    locale.setlocale(locale.LC_ALL, 'english_USA')
+elif os.name == 'posix':
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
+
+def convert_string(x):
+    # no comma
+    if x.find(',') == -1:
+        return x
+    try:
+        return locale.atoi(x)
+    except ValueError:
+        try:
+            return locale.atof(x)
+        except Exception:
+            return x
+
+
+# Get firm codes
+# (number of columns(items), list of firm codes)
+def extract_ids(xs):
+    result = []
+    first_ids = None
+    for _, ss in groupby(xs[1:], lambda x: x):
+        ss = list(ss)
+        if not first_ids:
+            first_ids = ss
+        # it could be just an empty string
+        if ss[0].strip():
+            result.append(ss[0].strip())
+    return len(first_ids), result
+
+
+if cols:
+    print(cols)
+
+with open(filename, encoding='cp949') as f:
+    # throw away 8 lines
+    for _ in range(8):
+        f.readline()
+    reader = csv.reader(f)
+    # checks if the number of 'cols' corresponds with the file
+    line1 = next(reader)
+    n, ids = extract_ids(line1)
+    # throw away 5 more lines
+    for _ in range(5):
+        next(reader)
+
+    cols = util.listify(cols)
+    assert len(cols) == n, f"{n} cols required, given {cols}"
+    for line in csv.reader(f):
+        for s, vs in zip(ids, grouper(line[1:], n)):
+            # 1,232,392 => interpret
+            vs1 = (str(convert_string(v)) for v in vs)
+            print(','.join([line[0], s, *vs1]))
+
