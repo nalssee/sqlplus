@@ -587,7 +587,9 @@ class TestMisc(unittest.TestCase):
 
 if __name__ == "__main__":
     ws_path = os.path.join(os.getcwd(), '')
-    os.remove(os.path.join(ws_path, 'sample.db'))
+    fname = os.path.join(ws_path, 'sample.db')
+    if os.path.isfile(fname):
+        os.remove(fname)
     # First write csv files in workspace to sqlite db
     with dbopen('sample.db') as c:
         for f in os.listdir(ws_path):

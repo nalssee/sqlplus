@@ -106,22 +106,6 @@ def ymd(date, size, fmt):
     return int(d2) if isinstance(date, int) else d2
 
 
-# Not so fast but general and quits if not all equal
-def same(iterator):
-    iterator = iter(iterator)
-    try:
-        first = next(iterator)
-    except StopIteration:
-        return True
-    return all(first == rest for rest in iterator)
-
-
-def parse_model(model):
-    "y ~ x1 + x2 => ['y', 'x1', 'x2']"
-    left, right = model.split('~')
-    return [left.strip()] + [x.strip() for x in right.split('+')]
-
-
 def star(val, pval, n=3):
     "put stars according to p-value"
     val = format(val, f'.{n}f')

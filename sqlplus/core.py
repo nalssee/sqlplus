@@ -24,7 +24,7 @@ from itertools import groupby, islice, chain, tee, \
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, ymd, star, dateconv
+    random_string, ymd, star, dateconv
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -291,6 +291,11 @@ class Rows:
 
     # Simple one but..
     def ols(self, model):
+        def parse_model(model):
+            "y ~ x1 + x2 => ['y', 'x1', 'x2']"
+            left, right = model.split('~')
+            return [left.strip()] + [x.strip() for x in right.split('+')]
+
         y, *xs = parse_model(model)
         X = [[r[x] for x in xs] for r in self]
         res = sm.OLS(self[y], sm.add_constant(X)).fit()
@@ -544,10 +549,11 @@ class SQLPlus:
             if name0 != name1:
                 self.rename(name1, name0)
 
-    def write(self, filename, name=None, encoding='utf-8', pkeys=None):
+    def write(self, filename, name=None, encoding='utf-8',
+              fn=None, pkeys=None):
         """
         """
-        fn, ext = os.path.splitext(filename)
+        fname, ext = os.path.splitext(filename)
 
         if ext == '.csv':
             seq = _read_csv(filename, encoding)
@@ -558,8 +564,10 @@ class SQLPlus:
         else:
             raise ValueError('Unknown file extension', ext)
 
-        name = name or fn
+        name = name or fname
         self.drop(name)
+        if fn:
+            seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
 
     # register function to sql
