@@ -56,7 +56,7 @@ def extract_ids(xs):
 
 
 if cols:
-    print(cols)
+    print('date,id,' + cols)
 
 with open(filename, encoding='cp949') as f:
     # throw away 8 lines

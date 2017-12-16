@@ -24,7 +24,7 @@ from itertools import groupby, islice, chain, tee, \
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    parse_model, random_string, ymd, star
+    parse_model, random_string, ymd, star, dateconv
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -456,7 +456,11 @@ class SQLPlus:
 
         # some performance tuning
         self._cursor.execute(f'PRAGMA cache_size={cache_size}')
-        self._cursor.execute('PRAGMA synchronous=OFF')
+
+        # Don't be too greedy, comment out the following line.
+        # It's too dangerous. Your db file can be corrupted
+        # self._cursor.execute('PRAGMA synchronous=OFF')
+
         self._cursor.execute('PRAGMA count_changes=0')
         # temp store at memory
         self._cursor.execute(f'PRAGMA temp_store={temp_store}')
@@ -464,6 +468,8 @@ class SQLPlus:
 
         # load some user-defined functions from util.py, istext unnecessary
         self.conn.create_function('isnum', -1, isnum)
+        self.conn.create_function('ymd', 3, ymd)
+        self.conn.create_function('dateconv', 3, dateconv)
 
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):
