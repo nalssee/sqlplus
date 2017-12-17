@@ -369,6 +369,12 @@ class Rows:
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
     def df(self, cols=None):
+        def _safe_values(rows, cols):
+            "assert all rows have cols"
+            for r in rows:
+                assert r.columns == cols, str(r)
+                yield r.values
+
         if cols:
             cols = listify(cols)
             return pd.DataFrame([[r[col] for col in cols] for r in self.rows],
@@ -731,23 +737,6 @@ class SQLPlus:
         allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
         query = f"select {allcols} from {tname0} {jcs}"
         self.newtable(query, name, pkeys)
-
-
-def _safe_values(rows, cols):
-    "assert all rows have cols"
-    for r in rows:
-        assert r.columns == cols, str(r)
-        yield r.values
-
-
-def _pick(cols, seq):
-    " pick only cols for a seq, similar to sql select "
-    cols = listify(cols)
-    for r in seq:
-        r1 = Row()
-        for c in cols:
-            r1[c] = r[c]
-        yield r1
 
 
 def _build_keyfn(key):
