@@ -121,7 +121,7 @@ class Rows:
     # list objects has a lot of useful attributes that can't be overwritten
     # not the same situation as 'row' class
 
-    # inheriting list can be problemetic
+    # inheriting list can be problematic
     # when you want to use this as a superclass
     # see 'where' method, you must return 'self' but it's not efficient
     # (at least afaik) if you inherit list
@@ -234,10 +234,15 @@ class Rows:
                 return False
         return True
 
-    def roll(self, size=None, step=None, col=None, nextfn=None):
+    def roll(self, *args):
         "group rows over time, allowing overlaps"
-        self.order(col)
-        for ls in _roll(self.rows, size, step, _build_keyfn(col), nextfn):
+        size, step = [x for x in args if isinstance(x, int) and not isinstance(x, bool)]
+        dcol = [x for x in args if isinstance(x, str)][0]
+        nextfn = _getone([x for x in args if callable(x)], None)
+        longest = _getone([x for x in args if isinstance(x, bool)], False)
+
+        self.order(dcol)
+        for ls in _roll(self.rows, size, step, _build_keyfn(dcol), nextfn, longest):
             yield self._newrows(ls)
 
     # destructive!!!
@@ -486,6 +491,7 @@ class SQLPlus:
               order=None, group=None, roll=None):
         """Generates a sequence of rows from a table.
         """
+
         # At most one among order, group and roll
         if (1 if order else 0) + (1 if group else 0) + (1 if roll else 0) > 1:
             raise ValueError("""At most one arg allowed
@@ -494,7 +500,12 @@ class SQLPlus:
         if group:
             order = group
         elif roll:
-            size, step, dcol, *nextfn = roll
+            # the order of roll should be somewhat loose, very hard to memorize it
+            # just remember that 'size' comes before 'step'
+            size, step = [x for x in roll if isinstance(x, int) and not isinstance(x, bool)]
+            dcol = [x for x in roll if isinstance(x, str)][0]
+            nextfn = _getone([x for x in roll if callable(x)], None)
+            longest = _getone([x for x in roll if isinstance(x, bool)], False)
             order = dcol
 
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
@@ -508,8 +519,7 @@ class SQLPlus:
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
         elif roll:
-            nextfn = nextfn[0] if nextfn else None
-            for ls in _roll(rows, size, step, _build_keyfn(dcol), nextfn):
+            for ls in _roll(rows, size, step, _build_keyfn(dcol), nextfn, longest):
                 yield Rows(ls)
         else:
             yield from rows
@@ -806,7 +816,11 @@ def _get_name_from_query(query):
         return None
 
 
-def _roll(seq, period, jump, keyfn, nextfn):
+def _getone(xs, default):
+    return xs[0] if xs else default
+
+
+def _roll(seq, period, jump, keyfn, nextfn, longest):
     """generates chunks of seq for rollover tasks.
     seq is assumed to be ordered
     """
@@ -837,11 +851,12 @@ def _roll(seq, period, jump, keyfn, nextfn):
         for i1 in range(i):
             next(gs)
 
-    for xs in islice(zip_longest(*gss, fillvalue=None), 0, None, jump):
+    xss = zip_longest(*gss, fillvalue=[]) if longest else zip(*gss)
+    for xs in islice(xss, 0, None, jump):
         # this might be a bit inefficient for some cases
         # but this is convenient, let's just go easy,
         # not making mistakes is much more important
-        result = list(chain(*(x for x in xs if x)))
+        result = list(chain(*xs))
         if len(result) > 0:
             yield result
 

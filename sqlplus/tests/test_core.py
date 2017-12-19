@@ -152,9 +152,14 @@ class TestRows(unittest.TestCase):
             rs1.append(Row(date=year))
 
         lengths = []
-        for rs0 in Rows(rs1).roll(3, 2, 'date'):
+        for rs0 in Rows(rs1).roll(3, 2, 'date', True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [3, 3, 3, 3, 2])
+
+        lengths = []
+        for rs0 in Rows(rs1).roll(3, 2, 'date'):
+            lengths.append(len(rs0))
+        self.assertEqual(lengths, [3, 3, 3, 3])
 
         rs2 = []
         start_month = '200101'
@@ -163,15 +168,15 @@ class TestRows(unittest.TestCase):
 
         lengths = []
         for rs0 in Rows(rs2).where('date > "200103"')\
-                            .roll(12, 12, 'date', lambda d: addm(d, 1)):
+                            .roll(12, 12, 'date', lambda d: addm(d, 1), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [12, 12, 9])
 
         lengths = []
         for rs0 in Rows(rs2).where("date > '200103'")\
-                            .roll(24, 12, 'date', lambda d: addm(d, 1)):
+                            .roll(24, 12, 'date', lambda d: addm(d, 1), False):
             lengths.append(len(rs0))
-        self.assertEqual(lengths, [24, 21, 9])
+        self.assertEqual(lengths, [24])
 
         rs3 = []
         start_date = '20010101'
@@ -179,14 +184,7 @@ class TestRows(unittest.TestCase):
             rs3.append(Row(date=ymd(start_date, {'days': i}, '%Y%m%d')))
 
         lengths = []
-        for rs0 in Rows(rs3).roll(14, 7, 'date', lambda d: ymd(d, '1 day', '%Y%m%d')):
-            lengths.append(len(rs0))
-        self.assertEqual(lengths, [14, 14, 14, 9, 2])
-
-        # In somewhat explicit representation, i.e., using keyword args
-        lengths = []
-        for rs0 in Rows(rs3).roll(step=7, col='date', size=14,
-                                  nextfn=lambda d: ymd(d, '1 day', '%Y%m%d')):
+        for rs0 in Rows(rs3).roll(14, 7, 'date', lambda d: ymd(d, '1 day', '%Y%m%d'), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
@@ -194,7 +192,7 @@ class TestRows(unittest.TestCase):
         rs = Rows([Row(date=addm('200101', i)) for i in range(10)])
         del rs[3]
         ls = [[int(x) for x in rs1['date']]
-              for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1))]
+              for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1), True)]
         self.assertEqual(
             ls, [[200101, 200102, 200103, 200105],
                  [200105, 200106, 200107, 200108, 200109],
@@ -321,11 +319,11 @@ class TestRows(unittest.TestCase):
             # oneway sorting
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(3, 3, 'yyyy')):
+                             roll=(3, 3, 'yyyy', True)):
                 pns(rs, {'asset': 10}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset'), 'tmpacc2')
 
-            for rs in c.fetch('tmpacc2', roll=(3, 3, 'yyyy')):
+            for rs in c.fetch('tmpacc2', roll=(3, 3, 'yyyy', True)):
                 xs = [len(x) for x in rs.group('yyyy')]
                 # the first one must have the largest number of items
                 self.assertEqual(max(xs), xs[0])
@@ -340,7 +338,7 @@ class TestRows(unittest.TestCase):
                 c.insert(r, 'tmpaccavg')
 
             # tests if pn numbering is correct!!
-            for rs in c.fetch('tmpaccavg', roll=(3, 3, 'date')):
+            for rs in c.fetch('tmpaccavg', roll=(3, 3, 'date', True)):
                 fdate = rs[0]['date']
                 rs1 = rs.where(f'date={fdate}')
                 xs1 = rs1.order('pn_asset')['avgasset']
@@ -357,7 +355,7 @@ class TestRows(unittest.TestCase):
 
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(8, 8, 'yyyy')):
+                             roll=(8, 8, 'yyyy', True)):
                 pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
@@ -372,7 +370,7 @@ class TestRows(unittest.TestCase):
             # dependent sort
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(8, 8, 'yyyy')):
+                             roll=(8, 8, 'yyyy', True)):
                 pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
@@ -421,7 +419,7 @@ class TestSQLPlus(unittest.TestCase):
                              sum([22, 25, 23, 26, 25, 31, 33, 11]))
 
             ls = []
-            for rs in q.fetch('orders1', roll=(3, 2, 'date')):
+            for rs in q.fetch('orders1', roll=(3, 2, 'date', True)):
                 for rs1 in rs.group('shipperid'):
                     ls.append(len(rs1))
             self.assertEqual([sum(ls1) for ls1 in grouper(ls, 3)],
@@ -522,7 +520,7 @@ class TestSQLPlus(unittest.TestCase):
 
             # testing reel
             ls = []
-            for rs in q.fetch('orders2', roll=(5, 2, 'date')):
+            for rs in q.fetch('orders2', roll=(5, 2, 'date', True)):
                 ls.append(len(rs))
             self.assertEqual(ls, [5, 5, 4, 2])
 
