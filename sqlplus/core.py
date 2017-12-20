@@ -401,7 +401,7 @@ class Rows:
 
     def numbering(self, d, dep=False, prefix='pn_'):
         "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
-        d1 = {c: x if callable(x) else lambda rs: rs.chunks(x)
+        d1 = {c: x if callable(x) else (lambda x: lambda rs: rs.chunks(x))(x)
               for c, x in d.items()}
 
         def rec(rs, cs):

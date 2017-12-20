@@ -347,6 +347,52 @@ class TestRows(unittest.TestCase):
 
             c.drop('tmpacc1, tmpacc2, tmpaccavg')
 
+    def test_numbering1(self):
+        def fn1(rs):
+            rs0 = rs.where('a=0')
+            rs1 = rs.where('a>0')
+            yield rs0
+            yield rs1
+
+        rs0 = Rows(Row(a=0) for _ in range(5))
+        for i, r in enumerate(rs0, 1):
+            r.b = i
+
+        rs1 = Rows(Row(a=1) for _ in range(10))
+        for i, r in enumerate(rs1, 6):
+            r.b = i
+
+        rs = rs0 + rs1
+
+        rs['pn_a'] = ''
+        rs['pn_b'] = ''
+        rs.numbering({'a': fn1, 'b': 2}, dep=True)
+        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1],
+                                            [1, 2], [1, 2], [1, 2],
+                                            [2, 1], [2, 1], [2, 1], [2, 1], [2, 1],
+                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+
+        rs['pn_a'] = ''
+        rs['pn_b'] = ''
+        rs.numbering({'b': 2, 'a': fn1}, dep=True)
+        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                                            [2, 1], [2, 1],
+                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+
+        rs['pn_a'] = ''
+        rs['pn_b'] = ''
+        rs.numbering({'a': fn1, 'b': 2})
+        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                                            [2, 1], [2, 1],
+                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+
+        rs['pn_b'] = ''
+        rs['pn_a'] = ''
+        rs.numbering({'b': 2, 'a': fn1})
+        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                                            [2, 1], [2, 1],
+                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+
     def test_numbering2d(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
