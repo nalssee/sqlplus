@@ -236,13 +236,15 @@ class Rows:
 
     def roll(self, *args):
         "group rows over time, allowing overlaps"
-        size, step = [x for x in args if isinstance(x, int) and not isinstance(x, bool)]
+        size, step = [x for x in args
+                      if isinstance(x, int) and not isinstance(x, bool)]
         dcol = [x for x in args if isinstance(x, str)][0]
         nextfn = _getone([x for x in args if callable(x)], None)
         longest = _getone([x for x in args if isinstance(x, bool)], False)
 
         self.order(dcol)
-        for ls in _roll(self.rows, size, step, _build_keyfn(dcol), nextfn, longest):
+        for ls in _roll(self.rows, size, step,
+                        _build_keyfn(dcol), nextfn, longest):
             yield self._newrows(ls)
 
     # destructive!!!
@@ -275,13 +277,6 @@ class Rows:
         "another simplified filtering, numbers only"
         cols = listify(','.join(cols))
         return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
-
-    # Won't be used often
-    def istext(self, *cols):
-        "another simplified filtering, texts(string) only"
-        cols = listify(','.join(cols))
-        return self._newrows([r for r in self
-                              if all(isinstance(r[c], str) for c in cols)])
 
     def avg(self, col, wcol=None, n=None):
         # wcol: column for weight,
@@ -500,9 +495,11 @@ class SQLPlus:
         if group:
             order = group
         elif roll:
-            # the order of roll should be somewhat loose, very hard to memorize it
+            # the order of roll should be somewhat loose,
+            # very hard to memorize it
             # just remember that 'size' comes before 'step'
-            size, step = [x for x in roll if isinstance(x, int) and not isinstance(x, bool)]
+            size, step = [x for x in roll
+                          if isinstance(x, int) and not isinstance(x, bool)]
             dcol = [x for x in roll if isinstance(x, str)][0]
             nextfn = _getone([x for x in roll if callable(x)], None)
             longest = _getone([x for x in roll if isinstance(x, bool)], False)
@@ -519,7 +516,8 @@ class SQLPlus:
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
         elif roll:
-            for ls in _roll(rows, size, step, _build_keyfn(dcol), nextfn, longest):
+            for ls in _roll(rows, size, step,
+                            _build_keyfn(dcol), nextfn, longest):
                 yield Rows(ls)
         else:
             yield from rows
