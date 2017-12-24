@@ -8,3 +8,4 @@ tags
 build/
 **/sample.db
 .idea/
+venv/
