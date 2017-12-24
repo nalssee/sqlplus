@@ -384,10 +384,6 @@ class Rows:
             seq = _safe_values(self.rows, cols)
             return pd.DataFrame(list(seq), columns=cols)
 
-    # Only for debugging
-    def show(self):
-        print(self.df())
-
     def ttest(self, col, n=3, popmean=0.0):
         "simplified rep of tstat"
         seq = self[col]
