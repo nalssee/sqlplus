@@ -191,7 +191,7 @@ class Rows:
             doneflag = False
             try:
                 r1 = next(rs1)
-            except:
+            except StopIteration:
                 doneflag = True
 
             for r0 in rs0:
@@ -206,7 +206,7 @@ class Rows:
                     yield r1
                     try:
                         r1 = next(rs1)
-                    except:
+                    except StopIteration:
                         doneflag = True
                 else:
                     while v0 > v1:
@@ -214,7 +214,8 @@ class Rows:
                             # throw away
                             r1 = next(rs1)
                             v1 = r1[col]
-                        except:
+                        # rs[col] can't raise Exception
+                        except StopIteration:
                             doneflag = True
                             break
                         # nothing to yield
@@ -335,11 +336,7 @@ class Rows:
             for i in range(1, n + 1):
                 end = int((size * i) / n)
                 # must yield anyway
-                try:
-                    val = self[start:end]
-                except:
-                    val = self._newrows([])
-                yield val
+                yield self[start:end]
                 start = end
         # n is a list of percentiles
         elif not col:
@@ -392,6 +389,7 @@ class Rows:
 
     def numbering(self, d, dep=False, prefix='pn_'):
         "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
+        # lexical closure in for loop!!
         d1 = {c: x if callable(x) else (lambda x: lambda rs: rs.chunks(x))(x)
               for c, x in d.items()}
 
@@ -530,7 +528,7 @@ class SQLPlus:
         else:
             try:
                 r0, rs = peek_first(rs)
-            except:
+            except StopIteration:
                 # empty sequence
                 return
 
@@ -585,7 +583,8 @@ class SQLPlus:
         def newfn(*args):
             try:
                 return fn(*args)
-            except:
+            # Whatever is fine
+            except Exception:
                 return ''
 
         args = []
@@ -603,7 +602,7 @@ class SQLPlus:
         def finalize(self):
             try:
                 return fn(*(x for x in zip(*self.rows)))
-            except:
+            except Exception:
                 return ''
         d['finalize'] = finalize
 
@@ -806,7 +805,7 @@ def _get_name_from_query(query):
     pat = re.compile(r'\s+from\s+(\w+)\s*')
     try:
         return pat.search(query.lower()).group(1)
-    except:
+    except AttributeError:
         return None
 
 
@@ -911,5 +910,3 @@ def _read_excel(filename):
     # it's OK. Excel files are small
     df = pd.read_excel(filename)
     yield from read_df(df)
-
-
