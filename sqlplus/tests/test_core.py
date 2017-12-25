@@ -308,6 +308,16 @@ class TestRows(unittest.TestCase):
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
 
+    def test_map(self):
+        rs1 = Rows(Row(x=i) for i in range(10))
+        rs2 = Rows(Row(x=i) for i in range(9))
+        rs3 = Rows(Row(x=i) for i in range(8))
+        fn = lambda r1, r2, r3: {'x': r1.x + r2.x, 'y': r3.x}
+        rs = rs1.map(fn, rs2, rs3)
+        for r in rs:
+            self.assertEqual(r.x, r.y * 2)
+        self.assertEqual(len(rs), 8)
+
     # pns is a combination of numbering and follow
     # test numbering and follow
     def test_numbering(self):
