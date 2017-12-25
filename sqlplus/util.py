@@ -91,7 +91,7 @@ def isnum(*xs):
         for x in xs:
             float(x)
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 
