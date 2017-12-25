@@ -91,7 +91,7 @@ def isnum(*xs):
         for x in xs:
             float(x)
         return True
-    except:
+    except ValueError:
         return False
 
 
@@ -117,6 +117,3 @@ def star(val, pval, n=3):
         return val + '*'
     else:
         return val
-
-
-
