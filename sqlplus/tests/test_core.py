@@ -482,6 +482,16 @@ class TestSQLPlus(unittest.TestCase):
                              [70, 74, 89, 44])
             q.drop('orders1')
 
+    def test_to_csv(self):
+        with dbopen('sample.db') as c:
+            c.to_csv('categories', 'foo.csv')
+            a = c.rows('categories')
+            c.write('foo.csv')
+            b = c.rows('foo')
+            for a1, b1 in zip(a, b):
+                self.assertEqual(a1.values, b1.values)
+            os.remove(os.path.join(WORKSPACE, 'foo.csv'))
+
     def test_insert(self):
         with dbopen('sample.db') as c:
             c.drop('foo')

@@ -585,6 +585,17 @@ class SQLPlus:
             seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
 
+    def to_csv(self, tname, outfile=None, cols=None, where=None, order=None):
+        seq = self.fetch(tname, cols=cols, where=where, order=order)
+        r0, rs = peek_first(seq)
+        columns = listify(cols) if cols else r0.columns
+        filename = outfile or tname + '.csv'
+        with open(os.path.join(WORKSPACE, filename), 'w', newline='') as f:
+            w = csv.writer(f, delimiter=',')
+            w.writerow(columns)
+            for r in rs:
+                w.writerow(r.values)
+
     # register function to sql
     def register(self, fn, name=None):
         def newfn(*args):
