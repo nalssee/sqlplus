@@ -495,6 +495,26 @@ class TestSQLPlus(unittest.TestCase):
             # the following must not raise exceptions
             c.insert(Rows([]), 'foo')
 
+            c.drop('foo')
+            def foo():
+                for i in range(10):
+                    xs = []
+                    for j in range(3):
+                        xs.append(Row(x=j))
+                    yield Rows(xs)
+            c.insert(foo(), 'foo')
+            self.assertEqual(len(c.rows('foo')), 30)
+
+            c.drop('foo')
+            def foo():
+                for i in range(10):
+                    xs = []
+                    for j in range(3):
+                        xs.append(Row(x=j))
+                    yield xs
+            c.insert(foo(), 'foo')
+            self.assertEqual(c.rows('foo')[:6]['x'], [0, 1, 2, 0, 1, 2])
+
     def test_register(self):
         def product(xs):
             result = 1

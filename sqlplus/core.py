@@ -17,7 +17,7 @@ import pandas as pd
 
 from sas7bdat import SAS7BDAT
 from scipy.stats import ttest_1samp
-from collections import OrderedDict
+from collections import OrderedDict, Iterable
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
@@ -531,6 +531,10 @@ class SQLPlus:
         else:
             try:
                 r0, rs = peek_first(rs)
+                # r0 can be a list or a 'Rows'
+                if isinstance(r0, Rows) or isinstance(r0, Iterable):
+                    rs = (r for rs0 in rs for r in rs0)
+                    r0, rs = peek_first(rs)
             except StopIteration:
                 # empty sequence
                 return
