@@ -64,7 +64,7 @@ def pns(rs, d, dcol, icol, dep=False):
     rs0 = rs.where(f'{dcol}={fdate}')
     rs1 = rs.where(f'{dcol}!={fdate}')
     rs0.numbering(d, dep)
-    rs1.follow(rs0, icol, ['pn_' + x for x in list(d)])
+    rs1.follow(rs0, icol, ['pn_' + x for  x in list(d)])
 
 
 class TestRows(unittest.TestCase):
@@ -121,21 +121,6 @@ class TestRows(unittest.TestCase):
             del rs['x']
         del rs['y']
         self.assertEqual(rs[0].columns, [])
-
-    def test_lzip(self):
-        rs1 = Rows(Row(year=2001 + i) for i in range(10))
-        del rs1[7]
-        rs2 = Rows(Row(year=2001 + i) for i in range(10))
-        rs2 = rs2[1:-1]
-        del rs2[3]
-        rs3 = Rows(Row(year=2001 + i) for i in range(10))
-        rs3.rows.append(Row(year=2013))
-        rs3 = rs3[3:]
-
-        ns = []
-        for x in rs1.lzip('year', rs2, rs3):
-            ns.append(len([x1 for x1 in x if x1 is None]))
-        self.assertEqual(ns, [2, 1, 1, 0, 1, 0, 0, 0, 1])
 
     def test_isconsec(self):
         seq = []
@@ -308,23 +293,13 @@ class TestRows(unittest.TestCase):
             rs = q.rows('customers')
             self.assertEqual(rs.df().shape, (91, 7))
 
-    def test_map(self):
-        rs1 = Rows(Row(x=i) for i in range(10))
-        rs2 = Rows(Row(x=i) for i in range(9))
-        rs3 = Rows(Row(x=i) for i in range(8))
-        fn = lambda r1, r2, r3: {'x': r1.x + r2.x, 'y': r3.x}
-        rs = rs1.map(fn, rs2, rs3)
-        for r in rs:
-            self.assertEqual(r.x, r.y * 2)
-        self.assertEqual(len(rs), 8)
-
     # pns is a combination of numbering and follow
     # test numbering and follow
     def test_numbering(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
             c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
-            c.newtable('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+            c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             # oneway sorting
             c.drop('tmpacc2')
@@ -407,7 +382,7 @@ class TestRows(unittest.TestCase):
         with dbopen('sample.db') as c:
             # now you need yyyy column
             c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
-            c.newtable('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
+            c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
@@ -438,10 +413,6 @@ class TestRows(unittest.TestCase):
                     # number of items ought to be about the same
                     # Test not so sophisticated
                     self.assertTrue(st.stdev(xs) < 12)
-
-    def test_ttest(self):
-        rs = Rows(Row(a=i) for i in range(10))
-        self.assertEqual(rs.ttest('a'), '4.500***')
 
 
 # This should be defined in 'main' if you want to exploit multiple cores
@@ -567,12 +538,12 @@ class TestSQLPlus(unittest.TestCase):
             c.sql("insert into test values (20,'x', 'c')")
             c.sql("insert into test values (20,-1.2, 'd')")
 
-            c.newtable("select foo(i, j) as val1, bar(i, j) as val2 from test",
+            c.create("select foo(i, j) as val1, bar(i, j) as val2 from test",
                        'test1')
             self.assertEqual(c.rows('test1')['val1'], [4, 23, 8, 24, '', 18.8])
             self.assertEqual(c.rows('test1')['val2'], [4, 23, 8, 24, '', 18.8])
 
-            c.newtable("""
+            c.create("""
             select foo1(i, j) as val1, bar1(i, j) as val2 from test group by x
             """, 'test2')
             self.assertEqual(c.rows('test2')['val1'], [98, 42, '', -24.0])
@@ -618,9 +589,9 @@ class TestSQLPlus(unittest.TestCase):
             self.assertEqual(len(q.rows('orders2')), 161)
 
             q.register(addm)
-            q.newtable('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
-            q.newtable('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
-            q.newtable('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
+            q.create('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
+            q.create('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
+            q.create('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
             q.join(
                 ['orders1', 'date, customerid, orderid', 'date, customerid'],
                 ['orders1_1', 'orderid as orderid1', 'd1, customerid'],
@@ -630,7 +601,7 @@ class TestSQLPlus(unittest.TestCase):
             )
             q.drop('orders1_1, orders1_2, orders1_3')
 
-            q.newtable("""
+            q.create("""
             select a.date, a.customerid, a.orderid,
             b.orderid as orderid1,
             c.orderid as orderid2,
@@ -655,6 +626,12 @@ class TestSQLPlus(unittest.TestCase):
                 self.assertEqual(r3.values, r4.values)
 
 
+# for pmap, this fn must be in top level, in Windwos machine.
+def fn(r, a):
+    r.x = a
+    return r
+
+
 class TestMisc(unittest.TestCase):
     def test_load_excel(self):
         with dbopen('sample.db') as c:
@@ -668,6 +645,24 @@ class TestMisc(unittest.TestCase):
         with dbopen('sample.db') as c:
             c.load('ff5_ew_mine.sas7bdat')
             self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
+
+    def test_pmap(self):
+        with dbopen(':memory:') as c:
+            rs = [Row(a=i) for i in range(10)]
+            rs1 = [Row(a=i) for i in range(10)]
+            for i in range(4):
+                # it takes much much longer!!
+                for r in pmap(fn, rs, args=(i,),  max_workers=2):
+                    c.insert(r, 'foo')
+                # single core version
+                for r in pmap(fn, rs1, args=(i,),  max_workers=1):
+                    c.insert(r, 'bar')
+            xs = list(c.fetch('foo', group='x'))
+            for i, x in enumerate(xs):
+                self.assertEqual(x[0].x, i)
+                self.assertEqual(len(x), 10)
+            for a, b in zip(c.rows('foo'), c.rows('bar')):
+                self.assertEqual(a.values, b.values)
 
 
 if __name__ == "__main__":

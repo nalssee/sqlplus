@@ -16,7 +16,6 @@ import statistics as st
 import pandas as pd
 
 from sas7bdat import SAS7BDAT
-from scipy.stats import ttest_1samp
 from collections import OrderedDict, Iterable
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
@@ -24,7 +23,7 @@ from itertools import groupby, islice, chain, tee, \
 from pypred import Predicate
 
 from .util import isnum, listify, peek_first, \
-    random_string, ymd, star, dateconv
+    random_string, ymd, dateconv
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -173,61 +172,6 @@ class Rows:
 
     def __add__(self, other):
         return self._newrows(self.rows + other.rows)
-
-    # You can write a function that sort of fills in missing date rows
-    # zipping like left join, based on column
-    # I thought this could be useful...
-    def lzip(self, col, *rss):
-        """self and rss are all ordered(ascending) and
-        none of them contains dups
-        Parameters:
-            rss: a list of a sequence of instances of 'Row',
-                a sequence can be either a list of iterator
-        """
-        # This should be fast, so the verification steps are ignored
-        rss = [iter(rs) for rs in rss]
-
-        def gen(rs0, rs1):
-            doneflag = False
-            try:
-                r1 = next(rs1)
-            except StopIteration:
-                doneflag = True
-
-            for r0 in rs0:
-                if doneflag:
-                    yield None
-                    continue
-                v0, v1 = r0[col], r1[col]
-                if v0 < v1:
-                    yield None
-                    continue
-                elif v0 == v1:
-                    yield r1
-                    try:
-                        r1 = next(rs1)
-                    except StopIteration:
-                        doneflag = True
-                else:
-                    while v0 > v1:
-                        try:
-                            # throw away
-                            r1 = next(rs1)
-                            v1 = r1[col]
-                        # rs[col] can't raise Exception
-                        except StopIteration:
-                            doneflag = True
-                            break
-                        # nothing to yield
-                    if v0 == v1:
-                        yield r1
-                    # passed over
-                    else:
-                        yield None
-
-        rs0s = tee(iter(self), len(rss) + 1)
-        seqs = (gen(rs0, rs1) for rs0, rs1 in zip(rs0s[1:], rss))
-        yield from zip(rs0s[0], *seqs)
 
     def isconsec(self, col, step, fmt):
         for x1, x2 in zip(self, self[1:]):
@@ -380,15 +324,6 @@ class Rows:
             cols = self.rows[0].columns
             seq = _safe_values(self.rows, cols)
             return pd.DataFrame(list(seq), columns=cols)
-
-    def map(self, fn, *args):
-        return Rows(Row(**fn(*xs)) for xs in zip(self, *args))
-
-    def ttest(self, col, n=3, popmean=0.0):
-        "simplified rep of tstat"
-        seq = self[col]
-        _, pval = ttest_1samp(seq, popmean)
-        return star(st.mean(seq), pval, n=n)
 
     def numbering(self, d, dep=False, prefix='pn_'):
         "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
@@ -565,7 +500,7 @@ class SQLPlus:
                 self.rename(name1, name0)
 
     def load(self, filename, name=None, encoding='utf-8',
-              fn=None, pkeys=None):
+             fn=None, pkeys=None):
         """
         """
         fname, ext = os.path.splitext(filename)
@@ -686,7 +621,7 @@ class SQLPlus:
         pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
         return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
-    def newtable(self, query, name=None, pkeys=None):
+    def create(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
         """
         temp_name = 'table_' + random_string()
@@ -759,7 +694,7 @@ class SQLPlus:
         jcs = ' '.join(join_clauses)
         allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
         query = f"select {allcols} from {tname0} {jcs}"
-        self.newtable(query, name, pkeys)
+        self.create(query, name, pkeys)
 
 
 def _build_keyfn(key):

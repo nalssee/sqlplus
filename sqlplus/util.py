@@ -5,7 +5,7 @@ import random
 import string
 import concurrent.futures
 import multiprocessing as mp
-from itertools import chain, zip_longest
+from itertools import chain, zip_longest, repeat
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -16,17 +16,18 @@ def dateconv(date, infmt, outfmt):
     return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
 
 
-def pmap(fn, *args, max_workers=None):
+def pmap(fn, *seqs, args=(), max_workers=None):
     """ Parallel map
     """
     max_workers = min(max_workers if isinstance(max_workers, int) else 1,
                       mp.cpu_count())
     if max_workers == 1:
-        yield from (fn(*a) for a in zip(*args))
+        yield from (fn(*x, *args) for x in zip(*seqs))
     else:
         tempstr = random_string()
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            for gs in grouper(zip(*args), max_workers, tempstr):
+            for gs in grouper(zip(*seqs, *(repeat(a) for a in args)),
+                              max_workers, tempstr):
                 gs = (x for x in gs if x != tempstr)
                 yield from executor.map(fn, *zip(*gs))
 
@@ -104,16 +105,3 @@ def ymd(date, size, fmt):
     d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
     d2 = d1.strftime(fmt)
     return int(d2) if isinstance(date, int) else d2
-
-
-def star(val, pval, n=3):
-    "put stars according to p-value"
-    val = format(val, f'.{n}f')
-    if pval < 0.01:
-        return val + '***'
-    elif pval < 0.05:
-        return val + '**'
-    elif pval < 0.1:
-        return val + '*'
-    else:
-        return val
