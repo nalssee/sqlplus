@@ -486,7 +486,8 @@ class TestSQLPlus(unittest.TestCase):
         with dbopen('sample.db') as c:
             c.to_csv('categories', 'foo.csv')
             a = c.rows('categories')
-            c.write('foo.csv')
+            c.drop('foo')
+            c.load('foo.csv')
             b = c.rows('foo')
             for a1, b1 in zip(a, b):
                 self.assertEqual(a1.values, b1.values)
@@ -657,7 +658,7 @@ class TestSQLPlus(unittest.TestCase):
 class TestMisc(unittest.TestCase):
     def test_load_excel(self):
         with dbopen('sample.db') as c:
-            c.write('orders.xlsx', 'orders_temp')
+            c.load('orders.xlsx', 'orders_temp')
             # You may see some surprises because
             # read_excel uses pandas way of reading excel files
             # q.rows('orders1').show()
@@ -665,7 +666,7 @@ class TestMisc(unittest.TestCase):
 
     def test_sas(self):
         with dbopen('sample.db') as c:
-            c.write('ff5_ew_mine.sas7bdat')
+            c.load('ff5_ew_mine.sas7bdat')
             self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
 
 
@@ -674,9 +675,9 @@ if __name__ == "__main__":
     fname = os.path.join(ws_path, 'sample.db')
     if os.path.isfile(fname):
         os.remove(fname)
-    # First write csv files in workspace to sqlite db
+    # First load csv files in workspace to sqlite db
     with dbopen('sample.db') as c:
         for f in os.listdir(ws_path):
             if f.endswith('.csv'):
-                c.write(f)
+                c.load(f)
     unittest.main()

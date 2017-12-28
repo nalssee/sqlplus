@@ -564,7 +564,7 @@ class SQLPlus:
             if name0 != name1:
                 self.rename(name1, name0)
 
-    def write(self, filename, name=None, encoding='utf-8',
+    def load(self, filename, name=None, encoding='utf-8',
               fn=None, pkeys=None):
         """
         """
@@ -580,7 +580,9 @@ class SQLPlus:
             raise ValueError('Unknown file extension', ext)
 
         name = name or fname
-        self.drop(name)
+        if name in self.tables:
+            print(f"Table {name} exists.")
+            return
         if fn:
             seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
