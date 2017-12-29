@@ -33,6 +33,14 @@ import statsmodels.api as sm
 WORKSPACE = ''
 
 
+def setwd(path):
+    "set working directory"
+    global WORKSPACE
+    WORKSPACE = path
+    if not os.path.exists(WORKSPACE):
+        os.makedirs(WORKSPACE)
+
+
 @contextmanager
 def dbopen(dbfile, cache_size=100000, temp_store=2):
     # temp_store might be deprecated
@@ -372,19 +380,11 @@ class SQLPlus:
 
         # set workspace if it's not there
         if not WORKSPACE:
-            if os.path.isabs(dbfile):
-                WORKSPACE = os.path.dirname(dbfile)
-            elif os.path.dirname(dbfile):
-                WORKSPACE = os.path.join(os.getcwd(), os.path.dirname())
-            else:
-                # default workspace
-                WORKSPACE = os.path.join(os.getcwd(), '')
-
-        if not os.path.exists(WORKSPACE):
-            os.makedirs(WORKSPACE)
+            # default workspace
+            WORKSPACE = os.getcwd()
 
         if dbfile != ':memory:':
-            dbfile = os.path.join(WORKSPACE, os.path.basename(dbfile))
+            dbfile = os.path.join(WORKSPACE, dbfile)
 
         # you may want to pass sqlite3.deltypes or something like that
         # but at this moment I think that will make matters worse
