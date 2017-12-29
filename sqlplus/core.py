@@ -41,6 +41,10 @@ def setwd(path):
         os.makedirs(WORKSPACE)
 
 
+def getwd():
+    return WORKSPACE
+
+
 @contextmanager
 def dbopen(dbfile, cache_size=100000, temp_store=2):
     # temp_store might be deprecated
