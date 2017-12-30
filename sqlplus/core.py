@@ -254,8 +254,8 @@ class Rows:
             return [left.strip()] + [x.strip() for x in right.split('+')]
 
         y, *xs = parse_model(model)
-        X = [[r[x] for x in xs] for r in self]
-        res = sm.OLS(self[y], sm.add_constant(X)).fit()
+        df = self.df()
+        res = sm.OLS(df[[y]], sm.add_constant(df[xs])).fit()
         return res
 
     def truncate(self, col, limit=0.01):
