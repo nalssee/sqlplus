@@ -526,12 +526,14 @@ class SQLPlus:
             seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
 
-    def to_csv(self, tname, outfile=None, cols=None, where=None, order=None):
+    def to_csv(self, tname, outfile=None, cols=None,
+               where=None, order=None, encoding='utf-8'):
         seq = self.fetch(tname, cols=cols, where=where, order=order)
         r0, rs = peek_first(seq)
         columns = listify(cols) if cols else r0.columns
         filename = outfile or tname + '.csv'
-        with open(os.path.join(WORKSPACE, filename), 'w', newline='') as f:
+        with open(os.path.join(WORKSPACE, filename), 'w', newline='',
+                  encoding=encoding) as f:
             w = csv.writer(f, delimiter=',')
             w.writerow(columns)
             for r in rs:
