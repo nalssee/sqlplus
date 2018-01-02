@@ -1,12 +1,8 @@
-import sys
 import os
 import unittest
+from sqlplus import Row, Rows, dbopen, ymd, isnum, dateconv, grouper, \
+                    getwd, pmap
 
-TESTPATH = os.path.dirname(os.path.realpath(__file__))
-PYPATH = os.path.join(TESTPATH, '..', '..')
-sys.path.append(PYPATH)
-
-from sqlplus import *
 
 def addm(date, n):
     return ymd(date, {'months': n}, '%Y%m')
@@ -24,13 +20,6 @@ class TestRow(unittest.TestCase):
 
         r = Row(b=10, a=20)
         self.assertEqual(r.columns, ['b', 'a'])
-
-    def test_copy(self):
-        r1 = Row(a=10, b='test')
-        r2 = r1.copy()
-
-        self.assertEqual(r1.columns, r2.columns)
-        self.assertEqual(r1.values, r2.values)
 
     def test_getattr(self):
         r1 = Row(a=10, b='test')
@@ -57,6 +46,7 @@ class TestRow(unittest.TestCase):
         del r1['b']
         self.assertEqual(r1.columns, [])
 
+
 # pns (portfolio numbering based on the first date, and assign the same for
 # all the follow up rows, since you hold the portfolio)
 def pns(rs, d, dcol, icol, dep=False):
@@ -64,7 +54,7 @@ def pns(rs, d, dcol, icol, dep=False):
     rs0 = rs.where(f'{dcol}={fdate}')
     rs1 = rs.where(f'{dcol}!={fdate}')
     rs0.numbering(d, dep)
-    rs1.follow(rs0, icol, ['pn_' + x for  x in list(d)])
+    rs1.follow(rs0, icol, ['pn_' + x for x in list(d)])
 
 
 class TestRows(unittest.TestCase):
@@ -169,7 +159,8 @@ class TestRows(unittest.TestCase):
             rs3.append(Row(date=ymd(start_date, {'days': i}, '%Y%m%d')))
 
         lengths = []
-        for rs0 in Rows(rs3).roll(14, 7, 'date', lambda d: ymd(d, '1 day', '%Y%m%d'), True):
+        for rs0 in Rows(rs3).roll(14, 7, 'date',
+                                  lambda d: ymd(d, '1 day', '%Y%m%d'), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
@@ -286,7 +277,8 @@ class TestRows(unittest.TestCase):
 
     def test_bps(self):
         rs = Rows(Row(a=i) for i in range(1, 101))
-        self.assertEqual([int(x) for x in rs.bps([0.3, 0.7, 0.8], 'a')], [30, 70, 80])
+        self.assertEqual([int(x) for x in rs.bps([0.3, 0.7, 0.8], 'a')],
+                         [30, 70, 80])
 
     def test_df(self):
         with dbopen('sample.db') as q:
@@ -304,7 +296,7 @@ class TestRows(unittest.TestCase):
             # oneway sorting
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(3, 3, 'yyyy', True)):
+                              roll=(3, 3, 'yyyy', True)):
                 pns(rs, {'asset': 10}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset'), 'tmpacc2')
 
@@ -352,31 +344,35 @@ class TestRows(unittest.TestCase):
         rs['pn_a'] = ''
         rs['pn_b'] = ''
         rs.numbering({'a': fn1, 'b': 2}, dep=True)
-        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1],
-                                            [1, 2], [1, 2], [1, 2],
-                                            [2, 1], [2, 1], [2, 1], [2, 1], [2, 1],
-                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+        self.assertEqual(rs['pn_a, pn_b'],
+                         [[1, 1], [1, 1],
+                          [1, 2], [1, 2], [1, 2],
+                          [2, 1], [2, 1], [2, 1], [2, 1], [2, 1],
+                          [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
 
         rs['pn_a'] = ''
         rs['pn_b'] = ''
         rs.numbering({'b': 2, 'a': fn1}, dep=True)
-        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
-                                            [2, 1], [2, 1],
-                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+        self.assertEqual(rs['pn_a, pn_b'],
+                         [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                          [2, 1], [2, 1], [2, 2], [2, 2], [2, 2],
+                          [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
 
         rs['pn_a'] = ''
         rs['pn_b'] = ''
         rs.numbering({'a': fn1, 'b': 2})
-        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
-                                            [2, 1], [2, 1],
-                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+        self.assertEqual(rs['pn_a, pn_b'],
+                         [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                          [2, 1], [2, 1], [2, 2], [2, 2], [2, 2],
+                          [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
 
         rs['pn_b'] = ''
         rs['pn_a'] = ''
         rs.numbering({'b': 2, 'a': fn1})
-        self.assertEqual(rs['pn_a, pn_b'], [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
-                                            [2, 1], [2, 1],
-                                            [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
+        self.assertEqual(rs['pn_a, pn_b'],
+                         [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
+                          [2, 1], [2, 1], [2, 2], [2, 2], [2, 2],
+                          [2, 2], [2, 2], [2, 2], [2, 2], [2, 2]])
 
     def test_numbering2d(self):
         with dbopen('sample.db') as c:
@@ -386,7 +382,7 @@ class TestRows(unittest.TestCase):
 
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(8, 8, 'yyyy', True)):
+                              roll=(8, 8, 'yyyy', True)):
                 pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id')
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
@@ -395,21 +391,24 @@ class TestRows(unittest.TestCase):
                 for i in range(1, 5):
                     xs = []
                     for j in range(1, 5):
-                        xs.append(len(rs.where(f'pn_asset={i} and pn_ppe={j}')))
+                        n = len(rs.where(f'pn_asset={i} and pn_ppe={j}'))
+                        xs.append(n)
                     self.assertTrue(st.stdev(xs) >= 12)
 
             # dependent sort
             c.drop('tmpacc2')
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
-                             roll=(8, 8, 'yyyy', True)):
-                pns(rs, {'asset': 4, 'ppe': 4}, dcol='yyyy', icol='id', dep=True)
+                              roll=(8, 8, 'yyyy', True)):
+                pns(rs, {'asset': 4, 'ppe': 4},
+                    dcol='yyyy', icol='id', dep=True)
                 c.insert(rs.isnum('pn_asset, pn_ppe'), 'tmpacc2')
 
             for rs in c.fetch('tmpacc2', where='yyyy >= 1988', group='yyyy'):
                 for i in range(1, 5):
                     xs = []
                     for j in range(1, 5):
-                        xs.append(len(rs.where(f'pn_asset={i} and pn_ppe={j}')))
+                        n = len(rs.where(f'pn_asset={i} and pn_ppe={j}'))
+                        xs.append(n)
                     # number of items ought to be about the same
                     # Test not so sophisticated
                     self.assertTrue(st.stdev(xs) < 12)
@@ -478,6 +477,7 @@ class TestSQLPlus(unittest.TestCase):
             c.insert(Rows([]), 'foo')
 
             c.drop('foo')
+
             def foo():
                 for i in range(10):
                     xs = []
@@ -488,6 +488,7 @@ class TestSQLPlus(unittest.TestCase):
             self.assertEqual(len(c.rows('foo')), 30)
 
             c.drop('foo')
+
             def foo():
                 for i in range(10):
                     xs = []
@@ -500,7 +501,8 @@ class TestSQLPlus(unittest.TestCase):
     def test_register(self):
         def product(xs):
             result = 1
-            for x in xs: result *= x
+            for x in xs:
+                result *= x
             return result
 
         with dbopen(':memory:') as c:
@@ -539,7 +541,7 @@ class TestSQLPlus(unittest.TestCase):
             c.sql("insert into test values (20,-1.2, 'd')")
 
             c.create("select foo(i, j) as val1, bar(i, j) as val2 from test",
-                       'test1')
+                     'test1')
             self.assertEqual(c.rows('test1')['val1'], [4, 23, 8, 24, '', 18.8])
             self.assertEqual(c.rows('test1')['val2'], [4, 23, 8, 24, '', 18.8])
 
@@ -555,8 +557,8 @@ class TestSQLPlus(unittest.TestCase):
             q.join(
                 ['customers', 'customername', 'customerid'],
                 # if the matching columns (the third item in the following list
-                # is missing, then it is assumed to be the same as the matching column
-                # of the first table
+                # is missing, then it is assumed to be the same as
+                # the matching column of the first table
                 ['orders', 'orderid'],
                 name='customers1'
             )
@@ -573,7 +575,8 @@ class TestSQLPlus(unittest.TestCase):
             # There's no benefits in using multiple cores
             # You should know what you are doing.
 
-            tseq = pmap(avg_id, q.fetch('orders1', group='date'), max_workers=2)
+            tseq = pmap(avg_id, q.fetch('orders1', group='date'),
+                        max_workers=2)
             q.insert(tseq, 'orders2', True)
 
             # testing reel
@@ -584,7 +587,8 @@ class TestSQLPlus(unittest.TestCase):
 
             self.assertEqual(len(q.rows('orders1')), 196)
 
-            tseq = (rs[0] for rs in q.fetch('orders1', group='date, customerid'))
+            tseq = (rs[0] for rs in q.fetch('orders1',
+                                            group='date, customerid'))
             q.insert(tseq, 'orders2', True, pkeys='date, customerid')
             self.assertEqual(len(q.rows('orders2')), 161)
 
@@ -675,5 +679,4 @@ if __name__ == "__main__":
         for f in os.listdir(ws_path):
             if f.endswith('.csv'):
                 c.load(f)
-
     unittest.main()

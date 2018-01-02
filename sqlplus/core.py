@@ -75,12 +75,6 @@ class Row:
     def __init__(self, **kwargs):
         super().__setattr__('_ordered_dict', OrderedDict(**kwargs))
 
-    def copy(self):
-        r = Row()
-        for c, v in zip(self.columns, self.values):
-            r[c] = v
-        return r
-
     @property
     def columns(self):
         return list(self._ordered_dict.keys())
