@@ -220,7 +220,7 @@ class Rows:
         if isinstance(pred, str):
             obj = Predicate(pred)
             return self._newrows([r for r in self
-                                  if obj.evaluate(r._ordered_dict)])
+                                  if obj.evaluate(r._dict)])
         return self._newrows([r for r in self if pred(r)])
 
     def isnum(self, *cols):

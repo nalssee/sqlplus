@@ -1,5 +1,11 @@
 import os
+import sys
 import unittest
+
+TESTPATH = os.path.dirname(os.path.realpath(__file__))
+PYPATH = os.path.join(TESTPATH, '..', '..')
+sys.path.append(PYPATH)
+
 from sqlplus import Row, Rows, dbopen, ymd, isnum, dateconv, grouper, \
                     getwd, pmap
 
