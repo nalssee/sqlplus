@@ -16,7 +16,7 @@ import statistics as st
 import pandas as pd
 
 from sas7bdat import SAS7BDAT
-from collections import OrderedDict, Iterable
+from collections import Iterable
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
@@ -73,37 +73,36 @@ class Row:
     "mutable version of sqlite3.row"
     # works for python 3.6 and higher
     def __init__(self, **kwargs):
-        super().__setattr__('_ordered_dict', OrderedDict(**kwargs))
+        super().__setattr__('_dict', kwargs)
 
     @property
     def columns(self):
-        return list(self._ordered_dict.keys())
+        return list(self._dict.keys())
 
     @property
     def values(self):
-        return list(self._ordered_dict.values())
+        return list(self._dict.values())
 
     def __getattr__(self, name):
-        return self._ordered_dict[name]
+        return self._dict[name]
 
     def __setattr__(self, name, value):
-        self._ordered_dict[name] = value
+        self._dict[name] = value
 
     def __delattr__(self, name):
-        del self._ordered_dict[name]
+        del self._dict[name]
 
     def __getitem__(self, name):
-        return self._ordered_dict[name]
+        return self._dict[name]
 
     def __setitem__(self, name, value):
-        self._ordered_dict[name] = value
+        self._dict[name] = value
 
     def __delitem__(self, name):
-        del self._ordered_dict[name]
+        del self._dict[name]
 
     def __repr__(self):
-        content = ', '.join(c + '=' + repr(v) for c, v in
-                            zip(self.columns, self.values))
+        content = ', '.join(c + '=' + repr(v) for c, v in self._dict.items())
         return 'Row(' + content + ')'
 
     # for pickling, very important
