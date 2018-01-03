@@ -34,12 +34,11 @@ WORKSPACE = ''
 def setwd(path):
     """Set working directory
 
+    Args:
+        path: Absolute path
+
     Returns:
         None
-
-    Examples:
-        >>> setwd("C:\\Users\\johndoe\\workspace")
-
     """
     global WORKSPACE
     WORKSPACE = path
