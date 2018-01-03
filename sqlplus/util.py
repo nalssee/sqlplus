@@ -30,6 +30,9 @@ def dateconv(date, infmt, outfmt):
 
 def pmap(fn, *seqs, args=(), max_workers=None):
     """ Parallel map
+
+    |  fn takes a zipped elts of seqs and 'args' as arguments
+    |  max_workers is the minimum of 1 and max cpu count of the machine
     """
     max_workers = min(max_workers if isinstance(max_workers, int) else 1,
                       mp.cpu_count())
@@ -46,8 +49,12 @@ def pmap(fn, *seqs, args=(), max_workers=None):
 
 # copied from 'itertools'
 def grouper(iterable, n, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
-    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    """Collect data into fixed-length chunks or blocks, generator
+
+    Examples:
+        >>> grouper('ABCDEFG', 3, 'x')
+        ABC DEF Gxx"
+    """
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
 

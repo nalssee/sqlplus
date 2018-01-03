@@ -75,7 +75,14 @@
 <code class="descname">__init__</code><span class="sig-paren">(</span><em>dbfile</em>, <em>cache_size</em>, <em>temp_store</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>Args:</dt>
-<dd>dbfile (str): db filename or ‘:memory:’</dd>
+<dd><div class="first last line-block">
+<div class="line">dbfile (str): db filename or ‘:memory:’</div>
+<div class="line">cache_size(int)</div>
+<div class="line">temp_store(int)</div>
+</div>
+</dd>
+<dt>Additional Functions in SQL:</dt>
+<dd>dateconv, ymd, isnum</dd>
 </dl>
 </dd></dl>
 
@@ -83,79 +90,189 @@
 <dt id="sqlplus.SQLPlus.create">
 <code class="descname">create</code><span class="sig-paren">(</span><em>query</em>, <em>name=None</em>, <em>pkeys=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.create" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create new table from query(select statement)</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">query(str)</div>
+<div class="line">name(str): new table name, original table from the query</div>
+<div class="line-block">
+<div class="line">if not exists</div>
+</div>
+<div class="line">pkeys(str or list of str): primary keys</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.df">
 <code class="descname">df</code><span class="sig-paren">(</span><em>tname</em>, <em>cols=None</em>, <em>where=None</em>, <em>order=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.df" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Returns pandas data frame</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.drop">
 <code class="descname">drop</code><span class="sig-paren">(</span><em>tables</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.drop" title="Permalink to this definition">¶</a></dt>
-<dd><p>drop table if exists</p>
+<dd><p>Drops tables if exist</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>tables(str, list of str)</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.fetch">
 <code class="descname">fetch</code><span class="sig-paren">(</span><em>tname</em>, <em>cols=None</em>, <em>where=None</em>, <em>order=None</em>, <em>group=None</em>, <em>roll=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.fetch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a sequence of rows from a table.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">tname(str): table name</div>
+<div class="line">cols(str or list of str): columns to fetch</div>
+<div class="line">where(str): where clause in SQL query</div>
+<div class="line">order(str or list of str): comma separated str</div>
+<div class="line">group(str or list of str): comma separated str</div>
+<div class="line">roll:</div>
+<div class="line-block">
+<div class="line">(size(int), step(int), date_column(str),</div>
+<div class="line-block">
+<div class="line">longest(bool), nextfn(FN))</div>
+</div>
+<div class="line">No need to memorize the order, just size comes before step</div>
+<div class="line">longest: False(default) =&gt; length of periods is the “size”</div>
+<div class="line">nextfn: None(default) =&gt; No safe guard</div>
+</div>
+</div>
+</dd>
+<dt>Note:</dt>
+<dd>Only one of order, group, and roll is allowed</dd>
+<dt>Yields:</dt>
+<dd>Row or Rows</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.insert">
 <code class="descname">insert</code><span class="sig-paren">(</span><em>rs</em>, <em>name</em>, <em>overwrite=False</em>, <em>pkeys=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.insert" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Insert Row, Rows or sequence of Row(s)</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">rs(Row, Rows, or sequence of Row(s))</div>
+<div class="line">name(str): table name</div>
+<div class="line">overwrite(bool): False(default)</div>
+<div class="line">pkeys(str or list of str): primary keys</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.join">
 <code class="descname">join</code><span class="sig-paren">(</span><em>*tinfos</em>, <em>name=None</em>, <em>pkeys=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.join" title="Permalink to this definition">¶</a></dt>
-<dd><p>simplified version of left join</p>
+<dd><p>Simplified version of left join</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">tinfo: [tname, cols, cols to match]</div>
+<div class="line-block">
+<div class="line">ex) [‘sample’, ‘col1, col2 as colx’, ‘col3, col4’]</div>
+</div>
+<div class="line">name(str): new table name</div>
+<div class="line-block">
+<div class="line">the first table name of tinfos</div>
+</div>
+<div class="line">pkeys(str or list of str): primary keys</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.load">
 <code class="descname">load</code><span class="sig-paren">(</span><em>filename</em>, <em>name=None</em>, <em>encoding='utf-8'</em>, <em>fn=None</em>, <em>pkeys=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.load" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Read data file and save it on database</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">filename(str): .csv, .xlsx, .sas7bdat</div>
+<div class="line">name(str): table name</div>
+<div class="line">encoding(str): file encoding</div>
+<div class="line">fn(Row -&gt; Row): Row transformer</div>
+<div class="line">pkeys(str or list of str): primary keys</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.register">
 <code class="descname">register</code><span class="sig-paren">(</span><em>fn</em>, <em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.register" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Register Python function on SQL</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.register_agg">
 <code class="descname">register_agg</code><span class="sig-paren">(</span><em>fn</em>, <em>name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.register_agg" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Register aggregate Python function on SQL</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">fn: each arg is a list of column values</div>
+<div class="line">name(str): function name to use in SQL</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.rename">
 <code class="descname">rename</code><span class="sig-paren">(</span><em>old</em>, <em>new</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.rename" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Rename a table from old to new</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.rows">
 <code class="descname">rows</code><span class="sig-paren">(</span><em>tname</em>, <em>cols=None</em>, <em>where=None</em>, <em>order=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.rows" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Returns Rows</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.sql">
 <code class="descname">sql</code><span class="sig-paren">(</span><em>query</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.sql" title="Permalink to this definition">¶</a></dt>
 <dd><p>Simply executes sql statement and update tables attribute</p>
-<p>query: SQL query string
-args: args for SQL query</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">query(str): SQL query</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="sqlplus.SQLPlus.tables">
 <code class="descname">tables</code><a class="headerlink" href="#sqlplus.SQLPlus.tables" title="Permalink to this definition">¶</a></dt>
-<dd><p>list[str]: column names</p>
+<dd><p>List of table names in database</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.SQLPlus.to_csv">
 <code class="descname">to_csv</code><span class="sig-paren">(</span><em>tname</em>, <em>outfile=None</em>, <em>cols=None</em>, <em>where=None</em>, <em>order=None</em>, <em>encoding='utf-8'</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.to_csv" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Table to csv file</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">tname(str): table name</div>
+<div class="line">outfile(str): output file(csv) name</div>
+<div class="line">cols(str or list of str)</div>
+<div class="line">where(str)</div>
+<div class="line">order(str)</div>
+<div class="line">encoding(str)</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
@@ -165,14 +282,6 @@ args: args for SQL query</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
 <p>Mutable version of sqlite3.row</p>
 <dl class="docutils">
-<dt>Usage:</dt>
-<dd><div class="first last line-block">
-<div class="line">r = Row()</div>
-<div class="line">r.a = 10</div>
-<div class="line">r[‘b’] = ‘foo’</div>
-<div class="line">del r.a</div>
-</div>
-</dd>
 <dt>Note:</dt>
 <dd><div class="first line-block">
 <div class="line">The order of assignment is preserved</div>
@@ -295,29 +404,56 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.bps">
 <code class="descname">bps</code><span class="sig-paren">(</span><em>percentiles</em>, <em>col</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.bps" title="Permalink to this definition">¶</a></dt>
-<dd><p>Breakpoints from percentages</p>
+<dd><p>Returns a list of breakpoints of percentages for col</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.chunks">
 <code class="descname">chunks</code><span class="sig-paren">(</span><em>n</em>, <em>col=None</em>, <em>le=True</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.chunks" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Yields Rows, useful for building portfolios</p>
+<dl class="docutils">
+<dt>Usage:</dt>
+<dd><div class="first last line-block">
+<div class="line">self.chunks(3) =&gt; yields 3 rows about the same size</div>
+<div class="line">self.chunks([0.3, 0.4, 0.3]) =&gt; yields 3 rows of 30%, 40%, 30%</div>
+<div class="line">self.chunks([100, 500, 1000], ‘col’, False)</div>
+<div class="line-block">
+<div class="line">=&gt; yields 3 rows with break points [100, 500, 100]</div>
+<div class="line">Since le(less than or equal to) is False</div>
+<div class="line">the first group does not include 100</div>
+</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.copy">
 <code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.copy" title="Permalink to this definition">¶</a></dt>
-<dd><p>shallow copy</p>
+<dd><p>Shallow copy</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.df">
 <code class="descname">df</code><span class="sig-paren">(</span><em>cols=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.df" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Returns pandas data frame</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.follow">
 <code class="descname">follow</code><span class="sig-paren">(</span><em>rs</em>, <em>idcol</em>, <em>cols</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.follow" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>rs copies the self for cols if they have the same idcol values</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">rs(Rows)</div>
+<div class="line">idcol(str): column for id</div>
+<div class="line">cols(str or list of str)</div>
+</div>
+</dd>
+</dl>
+<p>Returns self</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.group">
@@ -325,7 +461,7 @@ args: args for SQL query</p>
 <dd><p>Yields rows of each group</p>
 <dl class="docutils">
 <dt>Args:</dt>
-<dd>key(str): columnn name to group</dd>
+<dd>key(str or list of str or fn): columnn name or fn to group</dd>
 </dl>
 <p>Yields Rows</p>
 </dd></dl>
@@ -354,7 +490,16 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.numbering">
 <code class="descname">numbering</code><span class="sig-paren">(</span><em>d</em>, <em>dep=False</em>, <em>prefix='pn_'</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.numbering" title="Permalink to this definition">¶</a></dt>
-<dd><p>d: {‘col1’: 3, ‘col2’: [0.3, 0.4, 0.3], ‘col3’: fn}</p>
+<dd><p>Returns self with additional columns with portfolio numbering</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">d(dict): ex) {‘col1’: 3, ‘col2’: [0.3, 0.4, 0.3], ‘col3’: fn}</div>
+<div class="line">dep(bool): False(default) =&gt; independent sort</div>
+<div class="line">prefix(str): prefix for the additional columns</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -378,12 +523,34 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.order">
 <code class="descname">order</code><span class="sig-paren">(</span><em>key</em>, <em>reverse=False</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.order" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Order rows by key</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">key(str, list of str, fn)</div>
+<div class="line">reverse(bool)</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.roll">
 <code class="descname">roll</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.roll" title="Permalink to this definition">¶</a></dt>
-<dd><p>group rows over time, allowing overlaps</p>
+<dd><p>Group rows over time, allowing overlaps</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">(size(int), step(int), date_column(str),</div>
+<div class="line-block">
+<div class="line">longest(bool), nextfn(FN))</div>
+</div>
+<div class="line">No need to memorize the order, just size comes before step</div>
+<div class="line">longest: False(default) =&gt; length of periods is the “size”</div>
+<div class="line">nextfn: None(default) =&gt; No safe guard</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -434,9 +601,7 @@ args: args for SQL query</p>
 <dd><p>Set working directory</p>
 <dl class="docutils">
 <dt>Args:</dt>
-<dd>path: Absolute path</dd>
-<dt>Returns:</dt>
-<dd>None</dd>
+<dd>path(str): Absolute path</dd>
 </dl>
 </dd></dl>
 
@@ -454,24 +619,63 @@ args: args for SQL query</p>
 <dl class="function">
 <dt id="sqlplus.dateconv">
 <code class="descclassname">sqlplus.</code><code class="descname">dateconv</code><span class="sig-paren">(</span><em>date</em>, <em>infmt</em>, <em>outfmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.dateconv" title="Permalink to this definition">¶</a></dt>
-<dd><p>date format conversion</p>
+<dd><p>Converts date format</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">date(int or str): 199912 or ‘1999DEC’</div>
+<div class="line">infmt(str): input format</div>
+<div class="line">outfmt(str): output format</div>
+</div>
+</dd>
+<dt>Date format examples:</dt>
+<dd><div class="first last line-block">
+<div class="line">%Y, %m, %d, %b …</div>
+<div class="line"><a class="reference external" href="https://docs.python.org/3/library/datetime.html">https://docs.python.org/3/library/datetime.html</a></div>
+</div>
+</dd>
+</dl>
+<p>Returns str</p>
 </dd></dl>
 
 <dl class="function">
 <dt id="sqlplus.ymd">
 <code class="descclassname">sqlplus.</code><code class="descname">ymd</code><span class="sig-paren">(</span><em>date</em>, <em>size</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.ymd" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Date arithmetic</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">date(int or str): 19991231 or “1999-12-31’</div>
+<div class="line">size(str): “3 months”</div>
+<div class="line">fmt(str): date format</div>
+</div>
+</dd>
+</dl>
+<p>Returns int if input(date) is int else str</p>
+</dd></dl>
 
 <dl class="function">
 <dt id="sqlplus.grouper">
 <code class="descclassname">sqlplus.</code><code class="descname">grouper</code><span class="sig-paren">(</span><em>iterable</em>, <em>n</em>, <em>fillvalue=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.grouper" title="Permalink to this definition">¶</a></dt>
-<dd><p>Collect data into fixed-length chunks or blocks</p>
+<dd><p>Collect data into fixed-length chunks or blocks, generator</p>
+<dl class="docutils">
+<dt>Examples:</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">grouper</span><span class="p">(</span><span class="s1">&#39;ABCDEFG&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">)</span>
+<span class="go">ABC DEF Gxx&quot;</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="sqlplus.pmap">
 <code class="descclassname">sqlplus.</code><code class="descname">pmap</code><span class="sig-paren">(</span><em>fn</em>, <em>*seqs</em>, <em>args=()</em>, <em>max_workers=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.pmap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parallel map</p>
+<div class="line-block">
+<div class="line">fn takes a zipped elts of seqs and ‘args’ as arguments</div>
+<div class="line">max_workers is the minimum of 1 and max cpu count of the machine</div>
+</div>
 </dd></dl>
 
 </div>

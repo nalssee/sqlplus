@@ -35,10 +35,7 @@ def setwd(path):
     """Set working directory
 
     Args:
-        path: Absolute path
-
-    Returns:
-        None
+        path(str): Absolute path
     """
     global WORKSPACE
     WORKSPACE = path
@@ -86,12 +83,6 @@ class _AggBuilder:
 # Don't try to be smart, unless you really know well
 class Row:
     """Mutable version of sqlite3.row
-
-    Usage:
-        |  r = Row()
-        |  r.a = 10
-        |  r['b'] = 'foo'
-        |  del r.a
 
     Note:
         |  The order of assignment is preserved
@@ -211,6 +202,8 @@ class Rows:
                 r[k] = v1
 
     def __delitem__(self, k):
+        """
+        """
         if isinstance(k, int) or isinstance(k, slice):
             del self.rows[k]
             return
@@ -236,7 +229,15 @@ class Rows:
         return True
 
     def roll(self, *args):
-        "group rows over time, allowing overlaps"
+        """Group rows over time, allowing overlaps
+
+        Args:
+            |  (size(int), step(int), date_column(str),
+            |   longest(bool), nextfn(FN))
+            |  No need to memorize the order, just size comes before step
+            |  longest: False(default) => length of periods is the "size"
+            |  nextfn: None(default) => No safe guard
+        """
         size, step = [x for x in args
                       if isinstance(x, int) and not isinstance(x, bool)]
         dcol = [x for x in args if isinstance(x, str)][0]
@@ -250,12 +251,19 @@ class Rows:
 
     # destructive!!!
     def order(self, key, reverse=False):
+        """Order rows by key
+
+        Args:
+            |  key(str, list of str, fn)
+            |  reverse(bool)
+
+        """
         # You can pass fn as key arg but not recommended
         self.rows.sort(key=_build_keyfn(key), reverse=reverse)
         return self
 
     def copy(self):
-        "shallow copy"
+        "Shallow copy"
         # I'm considering the inheritance
         return copy.copy(self)
 
@@ -366,7 +374,7 @@ class Rows:
         """Yields rows of each group
 
         Args:
-            key(str): columnn name to group
+            key(str or list of str or fn): columnn name or fn to group
 
         Yields Rows
         """
@@ -376,6 +384,16 @@ class Rows:
             yield self._newrows(list(rs))
 
     def chunks(self, n, col=None, le=True):
+        """Yields Rows, useful for building portfolios
+
+        Usage:
+            |  self.chunks(3) => yields 3 rows about the same size
+            |  self.chunks([0.3, 0.4, 0.3]) => yields 3 rows of 30%, 40%, 30%
+            |  self.chunks([100, 500, 1000], 'col', False)
+            |      => yields 3 rows with break points [100, 500, 100]
+            |      Since le(less than or equal to) is False
+            |      the first group does not include 100
+        """
         size = len(self)
         if isinstance(n, int):
             start = 0
@@ -405,13 +423,15 @@ class Rows:
             yield self[end:]
 
     def bps(self, percentiles, col):
-        "Breakpoints from percentages"
+        "Returns a list of breakpoints of percentages for col"
         bs = pd.Series(self[col]).describe(percentiles)
         return [bs[str(round(p * 100)) + '%'] for p in percentiles]
 
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
     def df(self, cols=None):
+        """Returns pandas data frame
+        """
         def _safe_values(rows, cols):
             "assert all rows have cols"
             for r in rows:
@@ -428,7 +448,13 @@ class Rows:
             return pd.DataFrame(list(seq), columns=cols)
 
     def numbering(self, d, dep=False, prefix='pn_'):
-        "d: {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}"
+        """Returns self with additional columns with portfolio numbering
+
+        Args:
+            |  d(dict): ex) {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}
+            |  dep(bool): False(default) => independent sort
+            |  prefix(str): prefix for the additional columns
+        """
         # lexical closure in for loop!!
         d1 = {c: x if callable(x) else (lambda x: lambda rs: rs.chunks(x))(x)
               for c, x in d.items()}
@@ -450,6 +476,15 @@ class Rows:
 
     # Copy column values from rs
     def follow(self, rs, idcol, cols):
+        """rs copies the self for cols if they have the same idcol values
+
+        Args:
+            |  rs(Rows)
+            |  idcol(str): column for id
+            |  cols(str or list of str)
+
+        Returns self
+        """
         cols = _listify(cols)
         # initialize
         for c in list(cols):
@@ -471,6 +506,9 @@ class SQLPlus:
             |  dbfile (str): db filename or ':memory:'
             |  cache_size(int)
             |  temp_store(int)
+
+        Additional Functions in SQL:
+            dateconv, ymd, isnum
         """
         global WORKSPACE
 
@@ -513,6 +551,25 @@ class SQLPlus:
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):
         """Generates a sequence of rows from a table.
+
+        Args:
+            |  tname(str): table name
+            |  cols(str or list of str): columns to fetch
+            |  where(str): where clause in SQL query
+            |  order(str or list of str): comma separated str
+            |  group(str or list of str): comma separated str
+            |  roll:
+            |      (size(int), step(int), date_column(str),
+            |       longest(bool), nextfn(FN))
+            |      No need to memorize the order, just size comes before step
+            |      longest: False(default) => length of periods is the "size"
+            |      nextfn: None(default) => No safe guard
+
+        Note:
+            Only one of order, group, and roll is allowed
+
+        Yields:
+            Row or Rows
         """
 
         # At most one among order, group and roll
@@ -551,7 +608,14 @@ class SQLPlus:
             yield from rows
 
     def insert(self, rs, name, overwrite=False, pkeys=None):
-        # rs: Row, Rows, A seq of Row(s)
+        """Insert Row, Rows or sequence of Row(s)
+
+        Args:
+            |  rs(Row, Rows, or sequence of Row(s))
+            |  name(str): table name
+            |  overwrite(bool): False(default)
+            |  pkeys(str or list of str): primary keys
+        """
         if isinstance(rs, Row):
             r0 = rs
         elif isinstance(rs, Rows):
@@ -597,7 +661,14 @@ class SQLPlus:
 
     def load(self, filename, name=None, encoding='utf-8',
              fn=None, pkeys=None):
-        """
+        """Read data file and save it on database
+
+        Args:
+            |  filename(str): .csv, .xlsx, .sas7bdat
+            |  name(str): table name
+            |  encoding(str): file encoding
+            |  fn(Row -> Row): Row transformer
+            |  pkeys(str or list of str): primary keys
         """
         fname, ext = os.path.splitext(filename)
 
@@ -620,6 +691,16 @@ class SQLPlus:
 
     def to_csv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
+        """Table to csv file
+
+        Args:
+            |  tname(str): table name
+            |  outfile(str): output file(csv) name
+            |  cols(str or list of str)
+            |  where(str)
+            |  order(str)
+            |  encoding(str)
+        """
         seq = self.fetch(tname, cols=cols, where=where, order=order)
         r0, rs = _peek_first(seq)
         columns = _listify(cols) if cols else r0.columns
@@ -633,6 +714,8 @@ class SQLPlus:
 
     # register function to sql
     def register(self, fn, name=None):
+        """Register Python function on SQL
+        """
         def newfn(*args):
             try:
                 return fn(*args)
@@ -650,6 +733,12 @@ class SQLPlus:
 
     # register aggregate function to sql
     def register_agg(self, fn, name=None):
+        """Register aggregate Python function on SQL
+
+        Args:
+            |  fn: each arg is a list of column values
+            |  name(str): function name to use in SQL
+        """
         d = {}
 
         def finalize(self):
@@ -672,7 +761,8 @@ class SQLPlus:
 
     @property
     def tables(self):
-        "list[str]: column names"
+        """List of table names in database
+        """
         query = self._cursor.execute("""
         select * from sqlite_master
         where type='table'
@@ -687,19 +777,27 @@ class SQLPlus:
     def sql(self, query):
         """Simply executes sql statement and update tables attribute
 
-        query: SQL query string
-        args: args for SQL query
+        Args:
+            |  query(str): SQL query
         """
         return self._cursor.execute(query)
 
     def rows(self, tname, cols=None, where=None, order=None):
+        """Returns Rows
+        """
         return Rows(self.fetch(tname, cols, where, order))
 
     def df(self, tname, cols=None, where=None, order=None):
+        """Returns pandas data frame
+        """
         return self.rows(tname, cols, where, order).df(cols)
 
     def drop(self, tables):
-        " drop table if exists "
+        """Drops tables if exist
+
+        Args:
+            tables(str, list of str)
+        """
         tables = _listify(tables)
         for table in tables:
             # you can't use '?' for table name
@@ -707,6 +805,8 @@ class SQLPlus:
             self.sql(f'drop table if exists {table}')
 
     def rename(self, old, new):
+        """Rename a table from old to new
+        """
         if old.lower() in self.tables:
             self.sql(f'drop table if exists { new }')
             self.sql(f'alter table { old } rename to { new }')
@@ -721,6 +821,12 @@ class SQLPlus:
 
     def create(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
+
+        Args:
+            |  query(str)
+            |  name(str): new table name, original table from the query
+            |             if not exists
+            |  pkeys(str or list of str): primary keys
         """
         temp_name = 'table_' + _random_string()
         tname = _get_name_from_query(query)
@@ -736,10 +842,15 @@ class SQLPlus:
             self.sql(f'drop table if exists { temp_name }')
 
     def join(self, *tinfos, name=None, pkeys=None):
-        "simplified version of left join"
-        # if name is not given first table name#
-        # tinfo: [tname, cols, cols to match]
-        # ['sample', 'col1, col2 as colx', 'col3, col4']
+        """Simplified version of left join
+
+        Args:
+            |  tinfo: [tname, cols, cols to match]
+            |         ex) ['sample', 'col1, col2 as colx', 'col3, col4']
+            |  name(str): new table name
+            |             the first table name of tinfos
+            |  pkeys(str or list of str): primary keys
+        """
         def get_newcols(cols):
             # extract new column names
             # if there's any renaming
