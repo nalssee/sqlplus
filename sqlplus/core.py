@@ -53,7 +53,17 @@ def getwd():
 @contextmanager
 def dbopen(dbfile, cache_size=100000, temp_store=2):
     # temp_store might be deprecated
-    "Connects to SQL database(sqlite)"
+    """ Connects to SQL database, decorated with contextmanager
+
+    Usage:
+        with dbopen('dbfile.db') as conn:
+            conn.load('sample.csv')
+
+    Args:
+        |  dbfile(str): relative path for db file.
+        |  cache_size(int):  cache size for insertion.
+        |  temp_store(int):  0, 1 for file. 2 for memory.
+    """
     splus = SQLPlus(dbfile, cache_size, temp_store)
     try:
         yield splus
@@ -75,8 +85,16 @@ class _AggBuilder:
 
 # Don't try to be smart, unless you really know well
 class Row:
-    """mutable version of sqlite3.row
-    hello world
+    """Mutable version of sqlite3.row
+
+    Usage:
+        |  r = Row()
+        |  r.a = 10
+        |  r['b'] = 'foo'
+        |  del r.a
+
+    Note:
+        The order of assignment is preserved
     """
     # works for python 3.6 and higher
     def __init__(self, **kwargs):

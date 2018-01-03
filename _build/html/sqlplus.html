@@ -48,7 +48,22 @@
 <dl class="function">
 <dt id="sqlplus.dbopen">
 <code class="descclassname">sqlplus.</code><code class="descname">dbopen</code><span class="sig-paren">(</span><em>dbfile</em>, <em>cache_size=100000</em>, <em>temp_store=2</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.dbopen" title="Permalink to this definition">¶</a></dt>
-<dd><p>Connects to SQL database(sqlite)</p>
+<dd><p>Connects to SQL database, decorated with contextmanager</p>
+<dl class="docutils">
+<dt>Usage:</dt>
+<dd><dl class="first last docutils">
+<dt>with dbopen(‘dbfile.db’) as conn:</dt>
+<dd>conn.load(‘sample.csv’)</dd>
+</dl>
+</dd>
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">dbfile(str): relative path for db file.</div>
+<div class="line">cache_size(int):  cache size for insertion.</div>
+<div class="line">temp_store(int):  0, 1 for file. 2 for memory.</div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="class">
@@ -139,8 +154,19 @@ args: args for SQL query</p>
 <dt id="sqlplus.Row">
 <em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">Row</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>mutable version of sqlite3.row
-hello world</p>
+<p>Mutable version of sqlite3.row</p>
+<dl class="docutils">
+<dt>Usage:</dt>
+<dd><div class="first last line-block">
+<div class="line">r = Row()</div>
+<div class="line">r.a = 10</div>
+<div class="line">r[‘b’] = ‘foo’</div>
+<div class="line">del r.a</div>
+</div>
+</dd>
+<dt>Note:</dt>
+<dd>The order of assignment is preserved</dd>
+</dl>
 <dl class="attribute">
 <dt id="sqlplus.Row.columns">
 <code class="descname">columns</code><a class="headerlink" href="#sqlplus.Row.columns" title="Permalink to this definition">¶</a></dt>
