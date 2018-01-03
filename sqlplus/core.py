@@ -94,7 +94,9 @@ class Row:
         |  del r.a
 
     Note:
-        The order of assignment is preserved
+        |  The order of assignment is preserved
+
+        Row value types are one of int, float or str
     """
     # works for python 3.6 and higher
     def __init__(self, **kwargs):
@@ -102,10 +104,14 @@ class Row:
 
     @property
     def columns(self):
+        """Returns a list of column names(strings)
+        """
         return list(self._dict.keys())
 
     @property
     def values(self):
+        """Returns a list of column values
+        """
         return list(self._dict.values())
 
     def __getattr__(self, name):
@@ -144,8 +150,11 @@ class Row:
 
 
 class Rows:
+    """Wrapper for a list of Row instances
+
+    Attributes:
+        rows(list of Row instances)
     """
-    a shallow wrapper of a list of row instances """
     # don't try to define __getattr__, __setattr__
     # list objects has a lot of useful attributes that can't be overwritten
     # not the same situation as 'row' class
@@ -156,6 +165,10 @@ class Rows:
     # (at least afaik) if you inherit list
 
     def __init__(self, rows):
+        """
+        Args:
+            rows(sequence of Row instances)
+        """
         self.rows = list(rows)
 
     def __len__(self):
@@ -163,7 +176,10 @@ class Rows:
 
     # __getitem__ enables you to iterate 'Rows'
     def __getitem__(self, k):
-        "cols: integer or list of strings or comma separated string"
+        """
+        Args:
+            k: int, slice, comma separated string or a list of strings
+        """
         if isinstance(k, int):
             return self.rows[k]
         if isinstance(k, slice):
@@ -179,6 +195,8 @@ class Rows:
             return [[r[k1] for k1 in k] for r in self.rows]
 
     def __setitem__(self, k, v):
+        """
+        """
         if isinstance(k, int) or isinstance(k, slice):
             self.rows[k] = v
             return
@@ -204,6 +222,14 @@ class Rows:
         return self._newrows(self.rows + other.rows)
 
     def isconsec(self, col, step, fmt):
+        """Tests if self.rows is consecutive calendrically
+
+        Args:
+            |  col(str): date column name.
+            |  step(str): "1 month" for example
+            |  fmt(str): format for the date column, ex) "%Y%m%d"
+
+        """
         for x1, x2 in zip(self, self[1:]):
             if ymd(x1[col], step, fmt) != x2[col]:
                 return False
@@ -242,6 +268,11 @@ class Rows:
         return other
 
     def where(self, pred):
+        """Filters rows
+
+        Args:
+            pred(str or fn): "year > 1990 and size < 100" or predicate
+        """
         if isinstance(pred, str):
             obj = Predicate(pred)
             return self._newrows([r for r in self
@@ -249,13 +280,21 @@ class Rows:
         return self._newrows([r for r in self if pred(r)])
 
     def isnum(self, *cols):
-        "another simplified filtering, numbers only"
+        """Filters rows that are all numbers in cols
+        """
         cols = _listify(','.join(cols))
         return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
 
     def avg(self, col, wcol=None, n=None):
-        # wcol: column for weight,
-        # n: you may want to round up
+        """Computes average
+
+        Args:
+            |  col(str): column name to compute average
+            |  wcol(str): column for weight
+            |  n(int): round digits
+
+        Returns float
+        """
         if wcol:
             rs = self.isnum(col, wcol)
             total = sum(r[wcol] for r in rs)
@@ -264,8 +303,19 @@ class Rows:
             val = st.mean(r[col] for r in self if isnum(r[col]))
         return round(val, n) if n else val
 
-    # Simple one but..
     def ols(self, model):
+        """OLS fit
+
+        Args:
+            model(str): 'col1 ~ col2 + col3'
+
+        Returns:
+            |  statsmodels.api.OLS(model).fit()
+            |  http://www.statsmodels.org/stable/index.html
+
+        Note:
+            Constant is added automatically
+        """
         def parse_model(model):
             "y ~ x1 + x2 => ['y', 'x1', 'x2']"
             left, right = model.split('~')
@@ -277,7 +327,14 @@ class Rows:
         return res
 
     def truncate(self, col, limit=0.01):
-        "Truncate extreme values, defalut 1 percent on both sides"
+        """Truncate rows that are out of limits
+
+        Args:
+            |  col(str): column name
+            |  limit(float): for both sides respectably.
+
+        Returns self
+        """
         xs = self[col]
         lower = np.percentile(xs, limit * 100)
         higher = np.percentile(xs, (1 - limit) * 100)
@@ -286,6 +343,14 @@ class Rows:
         return self
 
     def winsorize(self, col, limit=0.01):
+        """Winsorsize rows that are out of limits
+
+        Args:
+            |  col(str): column name.
+            |  limit(float): for both sides respectably.
+
+        Returns self
+        """
         xs = self[col]
         lower = np.percentile(xs, limit * 100)
         higher = np.percentile(xs, (1 - limit) * 100)
@@ -298,6 +363,13 @@ class Rows:
 
     # implicit ordering
     def group(self, key):
+        """Yields rows of each group
+
+        Args:
+            key(str): columnn name to group
+
+        Yields Rows
+        """
         # key can be a fn but not recommended
         keyfn = _build_keyfn(key)
         for _, rs in groupby(self.order(keyfn), keyfn):
@@ -396,7 +468,9 @@ class SQLPlus:
     def __init__(self, dbfile, cache_size, temp_store):
         """
         Args:
-            dbfile (str): db filename or ':memory:'
+            |  dbfile (str): db filename or ':memory:'
+            |  cache_size(int)
+            |  temp_store(int)
         """
         global WORKSPACE
 

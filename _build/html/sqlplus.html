@@ -71,6 +71,15 @@
 <em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">SQLPlus</code><span class="sig-paren">(</span><em>dbfile</em>, <em>cache_size</em>, <em>temp_store</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
 <dl class="method">
+<dt id="sqlplus.SQLPlus.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>dbfile</em>, <em>cache_size</em>, <em>temp_store</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Args:</dt>
+<dd>dbfile (str): db filename or ‘:memory:’</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="sqlplus.SQLPlus.create">
 <code class="descname">create</code><span class="sig-paren">(</span><em>query</em>, <em>name=None</em>, <em>pkeys=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.SQLPlus.create" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create new table from query(select statement)</p>
@@ -165,17 +174,58 @@ args: args for SQL query</p>
 </div>
 </dd>
 <dt>Note:</dt>
-<dd>The order of assignment is preserved</dd>
+<dd><div class="first line-block">
+<div class="line">The order of assignment is preserved</div>
+</div>
+<p class="last">Row value types are one of int, float or str</p>
+</dd>
 </dl>
+<dl class="method">
+<dt id="sqlplus.Row.__delattr__">
+<code class="descname">__delattr__</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__delattr__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__delitem__">
+<code class="descname">__delitem__</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__delitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__getattr__">
+<code class="descname">__getattr__</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__getattr__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__setattr__">
+<code class="descname">__setattr__</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__setattr__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Row.__setitem__">
+<code class="descname">__setitem__</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row.__setitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="attribute">
 <dt id="sqlplus.Row.columns">
 <code class="descname">columns</code><a class="headerlink" href="#sqlplus.Row.columns" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Returns a list of column names(strings)</p>
+</dd></dl>
 
 <dl class="attribute">
 <dt id="sqlplus.Row.values">
 <code class="descname">values</code><a class="headerlink" href="#sqlplus.Row.values" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Returns a list of column values</p>
+</dd></dl>
 
 </dd></dl>
 
@@ -183,11 +233,64 @@ args: args for SQL query</p>
 <dt id="sqlplus.Rows">
 <em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">Rows</code><span class="sig-paren">(</span><em>rows</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>a shallow wrapper of a list of row instances</p>
+<p>Wrapper for a list of Row instances</p>
+<dl class="docutils">
+<dt>Attributes:</dt>
+<dd>rows(list of Row instances)</dd>
+</dl>
+<dl class="method">
+<dt id="sqlplus.Rows.__add__">
+<code class="descname">__add__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__add__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.__delitem__">
+<code class="descname">__delitem__</code><span class="sig-paren">(</span><em>k</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__delitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>k</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Args:</dt>
+<dd>k: int, slice, comma separated string or a list of strings</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>rows</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Args:</dt>
+<dd>rows(sequence of Row instances)</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.__len__">
+<code class="descname">__len__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__len__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.__setitem__">
+<code class="descname">__setitem__</code><span class="sig-paren">(</span><em>k</em>, <em>v</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.__setitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="method">
 <dt id="sqlplus.Rows.avg">
 <code class="descname">avg</code><span class="sig-paren">(</span><em>col</em>, <em>wcol=None</em>, <em>n=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.avg" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Computes average</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">col(str): column name to compute average</div>
+<div class="line">wcol(str): column for weight</div>
+<div class="line">n(int): round digits</div>
+</div>
+</dd>
+</dl>
+<p>Returns float</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.bps">
@@ -219,17 +322,33 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.group">
 <code class="descname">group</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.group" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Yields rows of each group</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>key(str): columnn name to group</dd>
+</dl>
+<p>Yields Rows</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.isconsec">
 <code class="descname">isconsec</code><span class="sig-paren">(</span><em>col</em>, <em>step</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isconsec" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Tests if self.rows is consecutive calendrically</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">col(str): date column name.</div>
+<div class="line">step(str): “1 month” for example</div>
+<div class="line">fmt(str): format for the date column, ex) “%Y%m%d”</div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.isnum">
 <code class="descname">isnum</code><span class="sig-paren">(</span><em>*cols</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isnum" title="Permalink to this definition">¶</a></dt>
-<dd><p>another simplified filtering, numbers only</p>
+<dd><p>Filters rows that are all numbers in cols</p>
 </dd></dl>
 
 <dl class="method">
@@ -241,7 +360,20 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.ols">
 <code class="descname">ols</code><span class="sig-paren">(</span><em>model</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.ols" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>OLS fit</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>model(str): ‘col1 ~ col2 + col3’</dd>
+<dt>Returns:</dt>
+<dd><div class="first last line-block">
+<div class="line">statsmodels.api.OLS(model).fit()</div>
+<div class="line"><a class="reference external" href="http://www.statsmodels.org/stable/index.html">http://www.statsmodels.org/stable/index.html</a></div>
+</div>
+</dd>
+<dt>Note:</dt>
+<dd>Constant is added automatically</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.order">
@@ -257,18 +389,42 @@ args: args for SQL query</p>
 <dl class="method">
 <dt id="sqlplus.Rows.truncate">
 <code class="descname">truncate</code><span class="sig-paren">(</span><em>col</em>, <em>limit=0.01</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.truncate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Truncate extreme values, defalut 1 percent on both sides</p>
+<dd><p>Truncate rows that are out of limits</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">col(str): column name</div>
+<div class="line">limit(float): for both sides respectably.</div>
+</div>
+</dd>
+</dl>
+<p>Returns self</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.where">
 <code class="descname">where</code><span class="sig-paren">(</span><em>pred</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.where" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Filters rows</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>pred(str or fn): “year &gt; 1990 and size &lt; 100” or predicate</dd>
+</dl>
+</dd></dl>
 
 <dl class="method">
 <dt id="sqlplus.Rows.winsorize">
 <code class="descname">winsorize</code><span class="sig-paren">(</span><em>col</em>, <em>limit=0.01</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.winsorize" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Winsorsize rows that are out of limits</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><div class="first last line-block">
+<div class="line">col(str): column name.</div>
+<div class="line">limit(float): for both sides respectably.</div>
+</div>
+</dd>
+</dl>
+<p>Returns self</p>
+</dd></dl>
 
 </dd></dl>
 
@@ -370,7 +526,7 @@ args: args for SQL query</p>
       &copy;2018, nalssee.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |

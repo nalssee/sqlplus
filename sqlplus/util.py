@@ -12,7 +12,19 @@ from dateutil.relativedelta import relativedelta
 
 
 def dateconv(date, infmt, outfmt):
-    "date format conversion"
+    """Converts date format
+
+    Args:
+        |  date(int or str): 199912 or '1999DEC'
+        |  infmt(str): input format
+        |  outfmt(str): output format
+
+    Date format examples:
+        |  %Y, %m, %d, %b ...
+        |  https://docs.python.org/3/library/datetime.html
+
+    Returns str
+    """
     return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
 
 
@@ -97,6 +109,15 @@ def isnum(*xs):
 
 
 def ymd(date, size, fmt):
+    """Date arithmetic
+
+    Args:
+        |  date(int or str): 19991231 or "1999-12-31'
+        |  size(str): "3 months"
+        |  fmt(str): date format
+
+    Returns int if input(date) is int else str
+    """
     if isinstance(size, str):
         n, unit = size.split()
         if not unit.endswith('s'):

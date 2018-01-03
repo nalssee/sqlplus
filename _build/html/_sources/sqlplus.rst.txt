@@ -12,3 +12,5 @@ Module contents
     :members:
     :undoc-members:
     :show-inheritance:
+    :special-members:
+    :exclude-members: __dict__,__weakref__, __module__, __setstate__, __getstate__, __repr__
