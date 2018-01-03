@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # sqlplus documentation build configuration file, created by
-# sphinx-quickstart on Wed Jan  3 18:01:41 2018.
+# sphinx-quickstart on Wed Jan  3 11:17:20 2018.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # sqlplus documentation build configuration file, created by
-# sphinx-quickstart on Wed Jan  3 18:01:41 2018.
+# sphinx-quickstart on Wed Jan  3 11:17:20 2018.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -20,7 +20,7 @@
 import os
 import sys
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.append("C:\\users\\kenjin\\Dropbox\\sqlplus")
+sys.path.append('C:\\Users\\kenjin\\work\\sqlplus')
 
 # -- General configuration ------------------------------------------------
 

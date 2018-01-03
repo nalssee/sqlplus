@@ -1,7 +1,5 @@
 """
-sqlite3 based utils for statistical analysis
-
-reeling off rows from db(sqlite3) and saving them back to db
+Utils for statistical analysis using sqlite3 engine
 """
 import os
 import re
@@ -22,8 +20,8 @@ from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
 from pypred import Predicate
 
-from .util import isnum, listify, peek_first, \
-    random_string, ymd, dateconv
+from .util import isnum, _listify, _peek_first, \
+    _random_string, ymd, dateconv
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -34,10 +32,13 @@ WORKSPACE = ''
 
 
 def setwd(path):
-    """set working directory
+    """Set working directory
+
+    Returns:
+        None
 
     Examples:
-        >>> setwd("foo")
+        >>> setwd("C:\\Users\\johndoe\\workspace")
 
     """
     global WORKSPACE
@@ -75,7 +76,9 @@ class _AggBuilder:
 
 # Don't try to be smart, unless you really know well
 class Row:
-    "mutable version of sqlite3.row"
+    """mutable version of sqlite3.row
+    hello world
+    """
     # works for python 3.6 and higher
     def __init__(self, **kwargs):
         super().__setattr__('_dict', kwargs)
@@ -150,7 +153,7 @@ class Rows:
             # shallow copy for non-destructive slicing
             return self._newrows(self.rows[k])
         # Now k is a column name(s)
-        k = listify(k)
+        k = _listify(k)
         if len(k) == 1:
             k = k[0]
             return [r[k] for r in self.rows]
@@ -230,7 +233,7 @@ class Rows:
 
     def isnum(self, *cols):
         "another simplified filtering, numbers only"
-        cols = listify(','.join(cols))
+        cols = _listify(','.join(cols))
         return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
 
     def avg(self, col, wcol=None, n=None):
@@ -327,7 +330,7 @@ class Rows:
                 yield r.values
 
         if cols:
-            cols = listify(cols)
+            cols = _listify(cols)
             return pd.DataFrame([[r[col] for col in cols] for r in self.rows],
                                 columns=cols)
         else:
@@ -358,7 +361,7 @@ class Rows:
 
     # Copy column values from rs
     def follow(self, rs, idcol, cols):
-        cols = listify(cols)
+        cols = _listify(cols)
         # initialize
         for c in list(cols):
             self[c] = ''
@@ -467,11 +470,11 @@ class SQLPlus:
                 r0 = rs[0]
         else:
             try:
-                r0, rs = peek_first(rs)
+                r0, rs = _peek_first(rs)
                 # r0 can be a list or a 'Rows'
                 if isinstance(r0, Rows) or isinstance(r0, Iterable):
                     rs = (r for rs0 in rs for r in rs0)
-                    r0, rs = peek_first(rs)
+                    r0, rs = _peek_first(rs)
             except StopIteration:
                 # empty sequence
                 return
@@ -480,7 +483,7 @@ class SQLPlus:
         n = len(cols)
 
         name0 = name
-        name1 = 'temp_' + random_string(20) if overwrite else name
+        name1 = 'temp_' + _random_string(20) if overwrite else name
 
         try:
             # create a table if not exists
@@ -527,8 +530,8 @@ class SQLPlus:
     def to_csv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
         seq = self.fetch(tname, cols=cols, where=where, order=order)
-        r0, rs = peek_first(seq)
-        columns = listify(cols) if cols else r0.columns
+        r0, rs = _peek_first(seq)
+        columns = _listify(cols) if cols else r0.columns
         filename = outfile or tname + '.csv'
         with open(os.path.join(WORKSPACE, filename), 'w', newline='',
                   encoding=encoding) as f:
@@ -571,7 +574,7 @@ class SQLPlus:
                 args.append(p)
         n = len(args) if args else -1
 
-        clsname = 'Temp' + random_string()
+        clsname = 'Temp' + _random_string()
         name = name or fn.__name__
         self.conn.create_aggregate(fn.__name__, n,
                                    type(clsname, (_AggBuilder,), d))
@@ -606,7 +609,7 @@ class SQLPlus:
 
     def drop(self, tables):
         " drop table if exists "
-        tables = listify(tables)
+        tables = _listify(tables)
         for table in tables:
             # you can't use '?' for table name
             # '?' is for data insertion
@@ -628,10 +631,10 @@ class SQLPlus:
     def create(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
         """
-        temp_name = 'table_' + random_string()
+        temp_name = 'table_' + _random_string()
         tname = _get_name_from_query(query)
         # keep pkeys from the original table if not exists
-        pkeys = listify(pkeys) if pkeys else self._pkeys(tname)
+        pkeys = _listify(pkeys) if pkeys else self._pkeys(tname)
         name = name or tname
         try:
             self.sql(_create_statement(temp_name, self._cols(query), pkeys))
@@ -650,7 +653,7 @@ class SQLPlus:
             # extract new column names
             # if there's any renaming
             result = []
-            for c in listify(cols.lower()):
+            for c in _listify(cols.lower()):
                 a, *b = [x.strip() for x in c.split('as')]
                 result.append(b[0] if b else a)
             return result
@@ -672,7 +675,7 @@ class SQLPlus:
         mcols_sizes = []
         for _, cols, mcols in tinfos:
             all_newcols += get_newcols(cols)
-            mcols_sizes.append(len(listify(mcols)))
+            mcols_sizes.append(len(_listify(mcols)))
 
         assert len(all_newcols) == len(set(all_newcols)), "Column duplicates"
         assert len(set(mcols_sizes)) == 1,\
@@ -681,8 +684,8 @@ class SQLPlus:
         tcols = []
         # write new temporary tables for performance
         for tname, cols, mcols in tinfos:
-            newcols = [tname + '.' + c for c in listify(cols)]
-            tcols.append((tname, newcols, listify(mcols)))
+            newcols = [tname + '.' + c for c in _listify(cols)]
+            tcols.append((tname, newcols, _listify(mcols)))
 
         tname0, _, mcols0 = tcols[0]
         join_clauses = []
@@ -706,7 +709,7 @@ def _build_keyfn(key):
     # if the key is already a function, just return it
     if hasattr(key, '__call__'):
         return key
-    colnames = listify(key)
+    colnames = _listify(key)
     if len(colnames) == 1:
         col = colnames[0]
         return lambda r: r[col]
@@ -721,7 +724,7 @@ def _create_statement(name, colnames, pkeys):
         Every type is numeric.
         Table name and column names are all lower cased
     """
-    pkeys = [f"primary key ({', '.join(listify(pkeys))})"] if pkeys else []
+    pkeys = [f"primary key ({', '.join(_listify(pkeys))})"] if pkeys else []
     # every col is numeric, this may not be so elegant but simple to handle.
     # If you want to change this, Think again
     schema = ', '.join([col.lower() + ' ' + 'numeric' for col in colnames] +
@@ -742,9 +745,9 @@ def _insert_statement(name, ncol):
 
 def _build_query(tname, cols=None, where=None, order=None):
     "Build select statement"
-    cols = ', '.join(listify(cols)) if cols else '*'
+    cols = ', '.join(_listify(cols)) if cols else '*'
     where = 'where ' + where if where else ''
-    order = 'order by ' + ', '.join(listify(order)) if order else ''
+    order = 'order by ' + ', '.join(_listify(order)) if order else ''
     return f'select {cols} from {tname} {where} {order}'
 
 
@@ -777,7 +780,7 @@ def _roll(seq, period, jump, keyfn, nextfn, longest):
     seq is assumed to be ordered
     """
     def chunk(seq):
-        fst, seq1 = peek_first(seq)
+        fst, seq1 = _peek_first(seq)
         k0 = keyfn(fst)
         for k1, sq in groupby(seq1, keyfn):
             if k0 == k1:
@@ -823,7 +826,7 @@ def _read_csv(filename, encoding='utf-8'):
     with open(os.path.join(WORKSPACE, filename),
               encoding=encoding) as fin:
         first_line = fin.readline()[:-1]
-        columns = listify(first_line)
+        columns = _listify(first_line)
         ncol = len(columns)
 
         # reader = csv.reader(fin)

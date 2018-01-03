@@ -93,11 +93,11 @@ class TestRows(unittest.TestCase):
         rs[1] = 30
         # non Row is assigned
         with self.assertRaises(Exception):
-            rs.show()
+            rs.df()
         rs[1] = Row(x=10, y=30, z=50)
         self.assertEqual(rs[1].values, [10, 30, 50])
         with self.assertRaises(Exception):
-            rs.show()
+            rs.df()
         # valid rows is asigned
         rs[1] = Row(x=10, y=30)
         self.assertEqual(rs['x'], [0, 10, 2])

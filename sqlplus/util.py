@@ -24,7 +24,7 @@ def pmap(fn, *seqs, args=(), max_workers=None):
     if max_workers == 1:
         yield from (fn(*x, *args) for x in zip(*seqs))
     else:
-        tempstr = random_string()
+        tempstr = _random_string()
         with concurrent.futures.ProcessPoolExecutor() as executor:
             for gs in grouper(zip(*seqs, *(repeat(a) for a in args)),
                               max_workers, tempstr):
@@ -40,14 +40,14 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
-def random_string(nchars=20):
+def _random_string(nchars=20):
     "Generates a random string of lengh 'n' with alphabets and digits. "
     chars = string.ascii_letters + string.digits
     return ''.join(random.SystemRandom().choice(chars)
                    for _ in range(nchars))
 
 
-def peek_first(seq):
+def _peek_first(seq):
     """
     Note:
         peeked first item is pushed back to the sequence
@@ -63,7 +63,7 @@ def peek_first(seq):
 
 
 # performance doesn't matter for this, most of the time
-def listify(x):
+def _listify(x):
     """
     Example:
         >>> listify('a, b, c')

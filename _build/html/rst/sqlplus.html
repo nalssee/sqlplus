@@ -40,10 +40,17 @@
             
   <div class="section" id="sqlplus-package">
 <h1>sqlplus package<a class="headerlink" href="#sqlplus-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
 <div class="section" id="module-sqlplus.core">
 <span id="sqlplus-core-module"></span><h2>sqlplus.core module<a class="headerlink" href="#module-sqlplus.core" title="Permalink to this headline">¶</a></h2>
-<p>sqlite3 based utils for statistical analysis</p>
-<p>reeling off rows from db(sqlite3) and saving them back to db</p>
+<p>Utils for statistical analysis using sqlite3 engine</p>
 <dl class="class">
 <dt id="sqlplus.core.Row">
 <em class="property">class </em><code class="descclassname">sqlplus.core.</code><code class="descname">Row</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.core.Row" title="Permalink to this definition">¶</a></dt>
@@ -252,10 +259,12 @@ args: args for SQL query</p>
 <dl class="function">
 <dt id="sqlplus.core.setwd">
 <code class="descclassname">sqlplus.core.</code><code class="descname">setwd</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.core.setwd" title="Permalink to this definition">¶</a></dt>
-<dd><p>set working directory</p>
+<dd><p>Set working directory</p>
 <dl class="docutils">
+<dt>Returns:</dt>
+<dd>None</dd>
 <dt>Examples:</dt>
-<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">setwd</span><span class="p">(</span><span class="s2">&quot;foo&quot;</span><span class="p">)</span>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">setwd</span><span class="p">(</span><span class="s2">&quot;C:\Users\johndoe\workspace&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd>
@@ -285,20 +294,144 @@ args: args for SQL query</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.util.listify">
-<code class="descclassname">sqlplus.util.</code><code class="descname">listify</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.listify" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Example:</dt>
-<dd><div class="first highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">listify</span><span class="p">(</span><span class="s1">&#39;a, b, c&#39;</span><span class="p">)</span>
-<span class="go">[&#39;a&#39;, &#39;b&#39;, &#39;c&#39;]</span>
-</pre></div>
+<dt id="sqlplus.util.pmap">
+<code class="descclassname">sqlplus.util.</code><code class="descname">pmap</code><span class="sig-paren">(</span><em>fn</em>, <em>*seqs</em>, <em>args=()</em>, <em>max_workers=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.pmap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallel map</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.util.ymd">
+<code class="descclassname">sqlplus.util.</code><code class="descname">ymd</code><span class="sig-paren">(</span><em>date</em>, <em>size</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.ymd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">listify</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-<span class="go">[3]</span>
-</pre></div>
-</div>
-<div class="last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">listify</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-<span class="go">[1, 2]</span>
+<div class="section" id="module-sqlplus">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sqlplus" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sqlplus.Row">
+<em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">Row</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Row" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>mutable version of sqlite3.row</p>
+<dl class="attribute">
+<dt id="sqlplus.Row.columns">
+<code class="descname">columns</code><a class="headerlink" href="#sqlplus.Row.columns" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="sqlplus.Row.values">
+<code class="descname">values</code><a class="headerlink" href="#sqlplus.Row.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sqlplus.Rows">
+<em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">Rows</code><span class="sig-paren">(</span><em>rows</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>a shallow wrapper of a list of row instances</p>
+<dl class="method">
+<dt id="sqlplus.Rows.avg">
+<code class="descname">avg</code><span class="sig-paren">(</span><em>col</em>, <em>wcol=None</em>, <em>n=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.avg" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.bps">
+<code class="descname">bps</code><span class="sig-paren">(</span><em>percentiles</em>, <em>col</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.bps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Breakpoints from percentages</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.chunks">
+<code class="descname">chunks</code><span class="sig-paren">(</span><em>n</em>, <em>col=None</em>, <em>le=True</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.chunks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>shallow copy</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.df">
+<code class="descname">df</code><span class="sig-paren">(</span><em>cols=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.df" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.follow">
+<code class="descname">follow</code><span class="sig-paren">(</span><em>rs</em>, <em>idcol</em>, <em>cols</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.follow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.group">
+<code class="descname">group</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.group" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.isconsec">
+<code class="descname">isconsec</code><span class="sig-paren">(</span><em>col</em>, <em>step</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isconsec" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.isnum">
+<code class="descname">isnum</code><span class="sig-paren">(</span><em>*cols</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isnum" title="Permalink to this definition">¶</a></dt>
+<dd><p>another simplified filtering, numbers only</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.numbering">
+<code class="descname">numbering</code><span class="sig-paren">(</span><em>d</em>, <em>dep=False</em>, <em>prefix='pn_'</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.numbering" title="Permalink to this definition">¶</a></dt>
+<dd><p>d: {‘col1’: 3, ‘col2’: [0.3, 0.4, 0.3], ‘col3’: fn}</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.ols">
+<code class="descname">ols</code><span class="sig-paren">(</span><em>model</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.ols" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.order">
+<code class="descname">order</code><span class="sig-paren">(</span><em>key</em>, <em>reverse=False</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.order" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.roll">
+<code class="descname">roll</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.roll" title="Permalink to this definition">¶</a></dt>
+<dd><p>group rows over time, allowing overlaps</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.truncate">
+<code class="descname">truncate</code><span class="sig-paren">(</span><em>col</em>, <em>limit=0.01</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.truncate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Truncate extreme values, defalut 1 percent on both sides</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.where">
+<code class="descname">where</code><span class="sig-paren">(</span><em>pred</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.where" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.Rows.winsorize">
+<code class="descname">winsorize</code><span class="sig-paren">(</span><em>col</em>, <em>limit=0.01</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.winsorize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.dbopen">
+<code class="descclassname">sqlplus.</code><code class="descname">dbopen</code><span class="sig-paren">(</span><em>dbfile</em>, <em>cache_size=100000</em>, <em>temp_store=2</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.dbopen" title="Permalink to this definition">¶</a></dt>
+<dd><p>Connects to SQL database(sqlite)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.setwd">
+<code class="descclassname">sqlplus.</code><code class="descname">setwd</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.setwd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set working directory</p>
+<dl class="docutils">
+<dt>Returns:</dt>
+<dd>None</dd>
+<dt>Examples:</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">setwd</span><span class="p">(</span><span class="s2">&quot;C:\Users\johndoe\workspace&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd>
@@ -306,34 +439,38 @@ args: args for SQL query</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.util.peek_first">
-<code class="descclassname">sqlplus.util.</code><code class="descname">peek_first</code><span class="sig-paren">(</span><em>seq</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.peek_first" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Note:</dt>
-<dd>peeked first item is pushed back to the sequence</dd>
-<dt>Args:</dt>
-<dd>seq (Iter[type])</dd>
-<dt>Returns:</dt>
-<dd>Tuple(type, Iter[type])</dd>
-</dl>
-</dd></dl>
+<dt id="sqlplus.getwd">
+<code class="descclassname">sqlplus.</code><code class="descname">getwd</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.getwd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.util.pmap">
-<code class="descclassname">sqlplus.util.</code><code class="descname">pmap</code><span class="sig-paren">(</span><em>fn</em>, <em>*seqs</em>, <em>args=()</em>, <em>max_workers=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.pmap" title="Permalink to this definition">¶</a></dt>
+<dt id="sqlplus.pmap">
+<code class="descclassname">sqlplus.</code><code class="descname">pmap</code><span class="sig-paren">(</span><em>fn</em>, <em>*seqs</em>, <em>args=()</em>, <em>max_workers=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.pmap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parallel map</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.util.random_string">
-<code class="descclassname">sqlplus.util.</code><code class="descname">random_string</code><span class="sig-paren">(</span><em>nchars=20</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.random_string" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates a random string of lengh ‘n’ with alphabets and digits.</p>
+<dt id="sqlplus.ymd">
+<code class="descclassname">sqlplus.</code><code class="descname">ymd</code><span class="sig-paren">(</span><em>date</em>, <em>size</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.ymd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.isnum">
+<code class="descclassname">sqlplus.</code><code class="descname">isnum</code><span class="sig-paren">(</span><em>*xs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.isnum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests if x is numeric</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.util.ymd">
-<code class="descclassname">sqlplus.util.</code><code class="descname">ymd</code><span class="sig-paren">(</span><em>date</em>, <em>size</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.util.ymd" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="sqlplus.dateconv">
+<code class="descclassname">sqlplus.</code><code class="descname">dateconv</code><span class="sig-paren">(</span><em>date</em>, <em>infmt</em>, <em>outfmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.dateconv" title="Permalink to this definition">¶</a></dt>
+<dd><p>date format conversion</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.grouper">
+<code class="descclassname">sqlplus.</code><code class="descname">grouper</code><span class="sig-paren">(</span><em>iterable</em>, <em>n</em>, <em>fillvalue=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.grouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect data into fixed-length chunks or blocks</p>
+</dd></dl>
 
 </div>
 </div>

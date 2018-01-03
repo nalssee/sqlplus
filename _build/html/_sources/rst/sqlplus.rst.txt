@@ -1,6 +1,16 @@
 sqlplus package
 ===============
 
+Subpackages
+-----------
+
+.. toctree::
+
+    sqlplus.tests
+
+Submodules
+----------
+
 sqlplus\.core module
 --------------------
 
@@ -18,3 +28,10 @@ sqlplus\.util module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: sqlplus
+    :members:
+    :undoc-members:
+    :show-inheritance:

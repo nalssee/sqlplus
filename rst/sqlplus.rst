@@ -1,6 +1,10 @@
 sqlplus package
 ===============
 
+
+Submodules
+----------
+
 sqlplus\.core module
 --------------------
 
@@ -18,3 +22,10 @@ sqlplus\.util module
     :show-inheritance:
 
 
+Module contents
+---------------
+
+.. automodule:: sqlplus
+    :members:
+    :undoc-members:
+    :show-inheritance:
