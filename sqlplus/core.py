@@ -34,7 +34,12 @@ WORKSPACE = ''
 
 
 def setwd(path):
-    "set working directory"
+    """set working directory
+
+    Examples:
+        >>> setwd("foo")
+
+    """
     global WORKSPACE
     WORKSPACE = path
     if not os.path.exists(WORKSPACE):
@@ -60,7 +65,7 @@ def dbopen(dbfile, cache_size=100000, temp_store=2):
 
 
 # aggreate function builder
-class AggBuilder:
+class _AggBuilder:
     def __init__(self):
         self.rows = []
 
@@ -569,7 +574,7 @@ class SQLPlus:
         clsname = 'Temp' + random_string()
         name = name or fn.__name__
         self.conn.create_aggregate(fn.__name__, n,
-                                   type(clsname, (AggBuilder,), d))
+                                   type(clsname, (_AggBuilder,), d))
 
     @property
     def tables(self):

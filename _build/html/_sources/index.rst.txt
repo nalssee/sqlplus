@@ -5,12 +5,6 @@
 
 Welcome to sqlplus's documentation!
 ===================================
-from sqlplus import *
-
-The above statement imports the following:
-
-Row, Rows, dbopen, setwd, getwd,
-pmap, ymd, isnum, dateconv, grouper
 
 .. toctree::
    :maxdepth: 2
@@ -18,5 +12,9 @@ pmap, ymd, isnum, dateconv, grouper
 
 
 
+Indices and tables
+==================
+
 * :ref:`genindex`
 * :ref:`modindex`
+* :ref:`search`
