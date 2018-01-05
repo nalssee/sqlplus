@@ -70,7 +70,7 @@ with open(filename, encoding='cp949') as f:
     for _ in range(5):
         next(reader)
 
-    cols = util.listify(cols)
+    cols = util._listify(cols)
     assert len(cols) == n, f"{n} cols required, given {cols}"
     for line in csv.reader(f):
         for s, vs in zip(ids, grouper(line[1:], n)):
