@@ -523,6 +523,7 @@ class SQLPlus:
         # you may want to pass sqlite3.deltypes or something like that
         # but at this moment I think that will make matters worse
         self.conn = sqlite3.connect(dbfile)
+        self.conn.row_factory = _row_factory
 
         # row_factory is problematic don't use it
         # you can avoid the problems but not worth it
@@ -590,13 +591,8 @@ class SQLPlus:
             longest = _getone([x for x in roll if isinstance(x, bool)], False)
             order = dcol
 
-        qrows = self._cursor.execute(_build_query(tname, cols, where, order))
-        columns = [c[0] for c in qrows.description]
-        # there can't be duplicates in column names
-        if len(columns) != len(set(columns)):
-            raise ValueError('duplicates in columns names')
+        rows = self._cursor.execute(_build_query(tname, cols, where, order))
 
-        rows = _build_rows(qrows, columns)
         if group:
             for _, rs in groupby(rows, _build_keyfn(group)):
                 yield Rows(rs)
@@ -646,7 +642,7 @@ class SQLPlus:
             query = self._insert_cursor.execute("""
             select * from sqlite_master where type='table'
             """)
-            if name1.lower() not in (row[1] for row in query):
+            if name1.lower() not in (row.name for row in query):
                 self._insert_cursor.execute(
                     _create_statement(name1, cols, pkeys))
 
@@ -768,7 +764,9 @@ class SQLPlus:
         where type='table'
         """)
         # **.lower()
-        tables = [row[1].lower() for row in query]
+        # for x in query:
+        #     print(x)
+        tables = [row.name.lower() for row in query]
         return sorted(tables)
 
     # args can be a list, a tuple or a dictionary
@@ -816,8 +814,8 @@ class SQLPlus:
 
     def _pkeys(self, tname):
         "Primary keys in order"
-        pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
-        return [r[1] for r in sorted(pks, key=lambda r: r[5])]
+        pks = [r for r in self.sql(f'pragma table_info({tname})') if r.pk]
+        return [r[1] for r in sorted(pks, key=lambda r: r.pk)]
 
     def create(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
@@ -953,14 +951,11 @@ def _build_query(tname, cols=None, where=None, order=None):
     return f'select {cols} from {tname} {where} {order}'
 
 
-# sequence row values to rows
-def _build_rows(seq_values, cols):
-    "build rows from an iterator of values"
-    for vals in seq_values:
-        r = Row()
-        for col, val in zip(cols, vals):
-            r[col] = val
-        yield r
+def _row_factory(cursor, row):
+    r = Row()
+    for idx, col in enumerate(cursor.description):
+        r[col[0]] = row[idx]
+    return r
 
 
 def _get_name_from_query(query):
@@ -1074,3 +1069,7 @@ def _read_excel(filename):
     # it's OK. Excel files are small
     df = pd.read_excel(filename)
     yield from read_df(df)
+
+
+
+
