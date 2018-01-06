@@ -5,27 +5,41 @@ import random
 import string
 import concurrent.futures
 import multiprocessing as mp
-from itertools import chain, zip_longest, repeat
+from itertools import chain, zip_longest, repeat, tee
 
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def dateconv(date, infmt, outfmt):
-    """Converts date format
+# If the return value is True it is converted to 1 or 0 in sqlite3
+# istext is unncessary for validity check
+def isnum(*xs):
+    "Tests if x is numeric"
+    try:
+        for x in xs:
+            float(x)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def isconsec(seq, **kwargs):
+    """Tests if seq is consecutive calendrically
 
     Args:
-        |  date(int or str): 199912 or '1999DEC'
-        |  infmt(str): input format
-        |  outfmt(str): output format
-
-    Date format examples:
-        |  %Y, %m, %d, %b ...
-        |  https://docs.python.org/3/library/datetime.html
-
-    Returns str
+        |  seq: parsed dates
+        |  kwargs: parameters for relativedelta
     """
-    return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
+    ds1, ds2 = tee(iter(seq))
+    # empty sequence is considered not consecutive
+    try:
+        next(ds2)
+    except StopIteration:
+        return False
+
+    for d1, d2 in zip(ds1, ds2):
+        if d1 + relativedelta(**kwargs) != d2:
+            return False
+    return True
 
 
 def pmap(fn, *seqs, args=(), max_workers=None):
@@ -102,34 +116,3 @@ def _listify(x):
         except TypeError:
             return [x]
 
-
-# If the return value is True it is converted to 1 or 0 in sqlite3
-# istext is unncessary for validity check
-def isnum(*xs):
-    "Tests if x is numeric"
-    try:
-        for x in xs:
-            float(x)
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def ymd(date, size, fmt):
-    """Date arithmetic
-
-    Args:
-        |  date(int or str): 19991231 or "1999-12-31'
-        |  size(str): "3 months"
-        |  fmt(str): date format
-
-    Returns int if input(date) is int else str
-    """
-    if isinstance(size, str):
-        n, unit = size.split()
-        if not unit.endswith('s'):
-            unit = unit + 's'
-        size = {unit: int(n)}
-    d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
-    d2 = d1.strftime(fmt)
-    return int(d2) if isinstance(date, int) else d2

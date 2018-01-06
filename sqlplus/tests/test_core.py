@@ -6,12 +6,12 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus import Row, Rows, dbopen, ymd, isnum, dateconv, grouper, \
-                    getwd, pmap
+from sqlplus import Row, Rows, dbopen, isnum, isconsec,\
+                    grouper, strptime, rd, parse, getwd, pmap
 
 
 def addm(date, n):
-    return ymd(date, {'months': n}, '%Y%m')
+    return (strptime(date, '%Y-%m') + rd(months=n)).strftime('%Y-%m')
 
 
 class TestRow(unittest.TestCase):
@@ -55,10 +55,21 @@ class TestRow(unittest.TestCase):
 
 # pns (portfolio numbering based on the first date, and assign the same for
 # all the follow up rows, since you hold the portfolio)
+# def pns(rs, d, dcol, icol, dep=False):
+#     fdate = rs[0][dcol]
+#     rs0 = rs.where(f'{dcol}={fdate}')
+#     rs1 = rs.where(f'{dcol}!={fdate}')
+#     rs0.numbering(d, dep)
+#     rs1.follow(rs0, icol, ['pn_' + x for x in list(d)])
+
 def pns(rs, d, dcol, icol, dep=False):
     fdate = rs[0][dcol]
-    rs0 = rs.where(f'{dcol}={fdate}')
-    rs1 = rs.where(f'{dcol}!={fdate}')
+    xs = rs.group(lambda r: r[dcol] != fdate)
+    rs0 = next(xs)
+    try:
+        rs1 = next(xs)
+    except StopIteration:
+        rs1 = Rows([])
     rs0.numbering(d, dep)
     rs1.follow(rs0, icol, ['pn_' + x for x in list(d)])
 
@@ -118,19 +129,10 @@ class TestRows(unittest.TestCase):
         del rs['y']
         self.assertEqual(rs[0].columns, [])
 
-    def test_isconsec(self):
-        seq = []
-        for i in range(10):
-            seq.append(Row(date=ymd('20010128', {'days': i}, '%Y%m%d')))
-        seq = Rows(seq)
-        self.assertTrue(seq.isconsec('date', '1 day', '%Y%m%d'))
-        del seq[3]
-        self.assertFalse(seq.isconsec('date', '1 day', '%Y%m%d'))
-
     def test_roll(self):
         rs1 = []
         for year in range(2001, 2011):
-            rs1.append(Row(date=year))
+            rs1.append(Row(date=parse(str(year))))
 
         lengths = []
         for rs0 in Rows(rs1).roll(3, 2, 'date', True):
@@ -143,38 +145,42 @@ class TestRows(unittest.TestCase):
         self.assertEqual(lengths, [3, 3, 3, 3])
 
         rs2 = []
-        start_month = '200101'
+        start_month = '2001-01'
         for i in range(36):
-            rs2.append(Row(date=addm(start_month, i)))
+            rs2.append(Row(date=parse(start_month) + rd(months=i)))
 
         lengths = []
-        for rs0 in Rows(rs2).where('date > "200103"')\
-                            .roll(12, 12, 'date', lambda d: addm(d, 1), True):
+        for rs0 in Rows(rs2).where(lambda r: r.date > parse("2001-03"))\
+                            .roll(12, 12, 'date',
+                                  lambda d: d + rd(months=1), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [12, 12, 9])
 
         lengths = []
-        for rs0 in Rows(rs2).where("date > '200103'")\
-                            .roll(24, 12, 'date', lambda d: addm(d, 1), False):
+        for rs0 in Rows(rs2).where(lambda r: r.date > parse('2001-03'))\
+                            .roll(24, 12, 'date',
+                                  lambda d: d + rd(months=1), False):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [24])
 
         rs3 = []
-        start_date = '20010101'
+        start_date = '2001-01-01'
         for i in range(30):
-            rs3.append(Row(date=ymd(start_date, {'days': i}, '%Y%m%d')))
+            rs3.append(Row(date=parse(start_date) + rd(days=i)))
 
         lengths = []
         for rs0 in Rows(rs3).roll(14, 7, 'date',
-                                  lambda d: ymd(d, '1 day', '%Y%m%d'), True):
+                                  lambda d: d + rd(days=i), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
         # # should be able to handle missing dates
-        rs = Rows([Row(date=addm('200101', i)) for i in range(10)])
+        rs = Rows([Row(date=parse('2001-01') + rd(months=i))
+                   for i in range(10)])
         del rs[3]
-        ls = [[int(x) for x in rs1['date']]
-              for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1), True)]
+        ls = [[int(x.strftime('%Y%m')) for x in rs1['date']]
+              for rs1 in rs.roll(5, 4, 'date',
+                                 lambda d: d + rd(months=1), True)]
         self.assertEqual(
             ls, [[200101, 200102, 200103, 200105],
                  [200105, 200106, 200107, 200108, 200109],
@@ -296,11 +302,13 @@ class TestRows(unittest.TestCase):
     def test_numbering(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
-            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.register(lambda d: strptime(d, '%Y-%m-%d').strftime('%Y'),
+                       'yearfn')
             c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             # oneway sorting
             c.drop('tmpacc2')
+
             for rs in c.fetch('tmpacc1', where='isnum(asset)',
                               roll=(3, 3, 'yyyy', True)):
                 pns(rs, {'asset': 10}, dcol='yyyy', icol='id')
@@ -313,6 +321,7 @@ class TestRows(unittest.TestCase):
 
             # average them
             c.drop('tmpaccavg')
+
             for rs in c.fetch('tmpacc2', group='yyyy, pn_asset'):
                 r = Row()
                 r.date = rs[0].yyyy
@@ -383,7 +392,8 @@ class TestRows(unittest.TestCase):
     def test_numbering2d(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
-            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.register(lambda d: strptime(d, '%Y-%m-%d').strftime('%Y'),
+                       'yearfn')
             c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             c.drop('tmpacc2')
@@ -423,7 +433,7 @@ class TestRows(unittest.TestCase):
 # This should be defined in 'main' if you want to exploit multiple cores
 # in Windows, The function itself here is just a giberrish for testing
 def avg_id(rs):
-    r = Row(date=dateconv(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
+    r = Row(date=strptime(rs[0].orderdate, '%Y-%m-%d').strftime('%Y-%m'))
     r.orderid = round(rs.avg('orderid'))
     r.customerid = round(rs.avg('orderid'))
     r.employeeid = round(rs.avg('employeeid'))
@@ -435,7 +445,7 @@ class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
     def test_apply(self):
         def to_month(r):
-            r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
+            r.date = strptime(r.orderdate, '%Y-%m-%d').strftime('%Y-%m')
             return r
 
         with dbopen('sample.db') as q:
@@ -574,8 +584,9 @@ class TestSQLPlus(unittest.TestCase):
             q.drop('customers1')
 
             def to_month(r):
-                r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
+                r.date = strptime(r.orderdate, '%Y-%m-%d').strftime('%Y-%m')
                 return r
+
             tseq = (to_month(r) for r in q.fetch('orders'))
             q.insert(tseq, 'orders1', True)
             # There's no benefits in using multiple cores
@@ -673,6 +684,14 @@ class TestMisc(unittest.TestCase):
                 self.assertEqual(len(x), 10)
             for a, b in zip(c.rows('foo'), c.rows('bar')):
                 self.assertEqual(a.values, b.values)
+
+    def test_isconsec(self):
+        seq = []
+        for i in range(10):
+            seq.append(strptime('2001-01-28', '%Y-%m-%d') + rd(days=i))
+        self.assertTrue(isconsec(seq, days=1))
+        del seq[3]
+        self.assertFalse(isconsec(seq, days=1))
 
 
 if __name__ == "__main__":

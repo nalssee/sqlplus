@@ -467,21 +467,6 @@
 </dd></dl>
 
 <dl class="method">
-<dt id="sqlplus.Rows.isconsec">
-<code class="descname">isconsec</code><span class="sig-paren">(</span><em>col</em>, <em>step</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isconsec" title="Permalink to this definition">¶</a></dt>
-<dd><p>Tests if self.rows is consecutive calendrically</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><div class="first last line-block">
-<div class="line">col(str): date column name.</div>
-<div class="line">step(str): “1 month” for example</div>
-<div class="line">fmt(str): format for the date column, ex) “%Y%m%d”</div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
 <dt id="sqlplus.Rows.isnum">
 <code class="descname">isnum</code><span class="sig-paren">(</span><em>*cols</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.Rows.isnum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Filters rows that are all numbers in cols</p>
@@ -617,41 +602,17 @@
 </dd></dl>
 
 <dl class="function">
-<dt id="sqlplus.dateconv">
-<code class="descclassname">sqlplus.</code><code class="descname">dateconv</code><span class="sig-paren">(</span><em>date</em>, <em>infmt</em>, <em>outfmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.dateconv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Converts date format</p>
+<dt id="sqlplus.isconsec">
+<code class="descclassname">sqlplus.</code><code class="descname">isconsec</code><span class="sig-paren">(</span><em>seq</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.isconsec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests if seq is consecutive calendrically</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><div class="first last line-block">
-<div class="line">date(int or str): 199912 or ‘1999DEC’</div>
-<div class="line">infmt(str): input format</div>
-<div class="line">outfmt(str): output format</div>
-</div>
-</dd>
-<dt>Date format examples:</dt>
-<dd><div class="first last line-block">
-<div class="line">%Y, %m, %d, %b …</div>
-<div class="line"><a class="reference external" href="https://docs.python.org/3/library/datetime.html">https://docs.python.org/3/library/datetime.html</a></div>
+<div class="line">seq: parsed dates</div>
+<div class="line">kwargs: parameters for relativedelta</div>
 </div>
 </dd>
 </dl>
-<p>Returns str</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="sqlplus.ymd">
-<code class="descclassname">sqlplus.</code><code class="descname">ymd</code><span class="sig-paren">(</span><em>date</em>, <em>size</em>, <em>fmt</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.ymd" title="Permalink to this definition">¶</a></dt>
-<dd><p>Date arithmetic</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><div class="first last line-block">
-<div class="line">date(int or str): 19991231 or “1999-12-31’</div>
-<div class="line">size(str): “3 months”</div>
-<div class="line">fmt(str): date format</div>
-</div>
-</dd>
-</dl>
-<p>Returns int if input(date) is int else str</p>
 </dd></dl>
 
 <dl class="function">
@@ -676,6 +637,264 @@
 <div class="line">fn takes a zipped elts of seqs and ‘args’ as arguments</div>
 <div class="line">max_workers is the minimum of 1 and max cpu count of the machine</div>
 </div>
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.strptime">
+<code class="descclassname">sqlplus.</code><code class="descname">strptime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.strptime" title="Permalink to this definition">¶</a></dt>
+<dd><p>string, format -&gt; new datetime parsed from a string (like time.strptime()).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="sqlplus.parse">
+<code class="descclassname">sqlplus.</code><code class="descname">parse</code><span class="sig-paren">(</span><em>timestr</em>, <em>parserinfo=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse a string in one of the supported formats, using the
+<code class="docutils literal"><span class="pre">parserinfo</span></code> parameters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>timestr</strong> – A string containing a date/time stamp.</li>
+<li><strong>parserinfo</strong> – A <code class="xref py py-class docutils literal"><span class="pre">parserinfo</span></code> object containing parameters for the parser.
+If <code class="docutils literal"><span class="pre">None</span></code>, the default arguments to the <code class="xref py py-class docutils literal"><span class="pre">parserinfo</span></code>
+constructor are used.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="docutils literal"><span class="pre">**kwargs</span></code> parameter takes the following keyword arguments:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>default</strong> – The default datetime object, if this is a datetime object and not
+<code class="docutils literal"><span class="pre">None</span></code>, elements specified in <code class="docutils literal"><span class="pre">timestr</span></code> replace elements in the
+default object.</li>
+<li><strong>ignoretz</strong> – If set <code class="docutils literal"><span class="pre">True</span></code>, time zones in parsed strings are ignored and a naive
+<code class="xref py py-class docutils literal"><span class="pre">datetime</span></code> object is returned.</li>
+<li><strong>tzinfos</strong> – <p>Additional time zone names / aliases which may be present in the
+string. This argument maps time zone names (and optionally offsets
+from those time zones) to time zones. This parameter can be a
+dictionary with timezone aliases mapping time zone names to time
+zones or a function taking two parameters (<code class="docutils literal"><span class="pre">tzname</span></code> and
+<code class="docutils literal"><span class="pre">tzoffset</span></code>) and returning a time zone.</p>
+<p>The timezones to which the names are mapped can be an integer
+offset from UTC in minutes or a <code class="xref py py-class docutils literal"><span class="pre">tzinfo</span></code> object.</p>
+<p>This parameter is ignored if <code class="docutils literal"><span class="pre">ignoretz</span></code> is set.</p>
+</li>
+<li><strong>dayfirst</strong> – Whether to interpret the first value in an ambiguous 3-integer date
+(e.g. 01/05/09) as the day (<code class="docutils literal"><span class="pre">True</span></code>) or month (<code class="docutils literal"><span class="pre">False</span></code>). If
+<code class="docutils literal"><span class="pre">yearfirst</span></code> is set to <code class="docutils literal"><span class="pre">True</span></code>, this distinguishes between YDM and
+YMD. If set to <code class="docutils literal"><span class="pre">None</span></code>, this value is retrieved from the current
+<code class="xref py py-class docutils literal"><span class="pre">parserinfo</span></code> object (which itself defaults to <code class="docutils literal"><span class="pre">False</span></code>).</li>
+<li><strong>yearfirst</strong> – Whether to interpret the first value in an ambiguous 3-integer date
+(e.g. 01/05/09) as the year. If <code class="docutils literal"><span class="pre">True</span></code>, the first number is taken to
+be the year, otherwise the last number is taken to be the year. If
+this is set to <code class="docutils literal"><span class="pre">None</span></code>, the value is retrieved from the current
+<code class="xref py py-class docutils literal"><span class="pre">parserinfo</span></code> object (which itself defaults to <code class="docutils literal"><span class="pre">False</span></code>).</li>
+<li><strong>fuzzy</strong> – Whether to allow fuzzy parsing, allowing for string like “Today is
+January 1, 2047 at 8:21:00AM”.</li>
+<li><strong>fuzzy_with_tokens</strong> – If <code class="docutils literal"><span class="pre">True</span></code>, <code class="docutils literal"><span class="pre">fuzzy</span></code> is automatically set to True, and the parser
+will return a tuple where the first element is the parsed
+<code class="xref py py-class docutils literal"><span class="pre">datetime.datetime</span></code> datetimestamp and the second element is
+a tuple containing the portions of the string which were ignored:</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Returns a <code class="xref py py-class docutils literal"><span class="pre">datetime.datetime</span></code> object or, if the
+<code class="docutils literal"><span class="pre">fuzzy_with_tokens</span></code> option is <code class="docutils literal"><span class="pre">True</span></code>, returns a tuple, the
+first element being a <code class="xref py py-class docutils literal"><span class="pre">datetime.datetime</span></code> object, the second
+a tuple containing the fuzzy tokens.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ValueError</strong> – Raised for invalid or unknown string format, if the provided
+<code class="xref py py-class docutils literal"><span class="pre">tzinfo</span></code> is not in a valid format, or if an invalid date
+would be created.</li>
+<li><strong>OverflowError</strong> – Raised if the parsed date exceeds the largest valid C integer on
+your system.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="sqlplus.relativedelta">
+<em class="property">class </em><code class="descclassname">sqlplus.</code><code class="descname">relativedelta</code><span class="sig-paren">(</span><em>dt1=None</em>, <em>dt2=None</em>, <em>years=0</em>, <em>months=0</em>, <em>days=0</em>, <em>leapdays=0</em>, <em>weeks=0</em>, <em>hours=0</em>, <em>minutes=0</em>, <em>seconds=0</em>, <em>microseconds=0</em>, <em>year=None</em>, <em>month=None</em>, <em>day=None</em>, <em>weekday=None</em>, <em>yearday=None</em>, <em>nlyearday=None</em>, <em>hour=None</em>, <em>minute=None</em>, <em>second=None</em>, <em>microsecond=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The relativedelta type is based on the specification of the excellent
+work done by M.-A. Lemburg in his
+<a class="reference external" href="http://www.egenix.com/files/python/mxDateTime.html">mx.DateTime</a> extension.
+However, notice that this type does <em>NOT</em> implement the same algorithm as
+his work. Do <em>NOT</em> expect it to behave like mx.DateTime’s counterpart.</p>
+<p>There are two different ways to build a relativedelta instance. The
+first one is passing it two date/datetime classes:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">relativedelta</span><span class="p">(</span><span class="n">datetime1</span><span class="p">,</span> <span class="n">datetime2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The second one is passing it any number of the following keyword arguments:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">relativedelta</span><span class="p">(</span><span class="n">arg1</span><span class="o">=</span><span class="n">x</span><span class="p">,</span><span class="n">arg2</span><span class="o">=</span><span class="n">y</span><span class="p">,</span><span class="n">arg3</span><span class="o">=</span><span class="n">z</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">day</span><span class="p">,</span> <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">second</span><span class="p">,</span> <span class="n">microsecond</span><span class="p">:</span>
+    <span class="n">Absolute</span> <span class="n">information</span> <span class="p">(</span><span class="n">argument</span> <span class="ow">is</span> <span class="n">singular</span><span class="p">);</span> <span class="n">adding</span> <span class="ow">or</span> <span class="n">subtracting</span> <span class="n">a</span>
+    <span class="n">relativedelta</span> <span class="k">with</span> <span class="n">absolute</span> <span class="n">information</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">perform</span> <span class="n">an</span> <span class="n">aritmetic</span>
+    <span class="n">operation</span><span class="p">,</span> <span class="n">but</span> <span class="n">rather</span> <span class="n">REPLACES</span> <span class="n">the</span> <span class="n">corresponding</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">the</span>
+    <span class="n">original</span> <span class="n">datetime</span> <span class="k">with</span> <span class="n">the</span> <span class="n">value</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">relativedelta</span><span class="o">.</span>
+
+<span class="n">years</span><span class="p">,</span> <span class="n">months</span><span class="p">,</span> <span class="n">weeks</span><span class="p">,</span> <span class="n">days</span><span class="p">,</span> <span class="n">hours</span><span class="p">,</span> <span class="n">minutes</span><span class="p">,</span> <span class="n">seconds</span><span class="p">,</span> <span class="n">microseconds</span><span class="p">:</span>
+    <span class="n">Relative</span> <span class="n">information</span><span class="p">,</span> <span class="n">may</span> <span class="n">be</span> <span class="n">negative</span> <span class="p">(</span><span class="n">argument</span> <span class="ow">is</span> <span class="n">plural</span><span class="p">);</span> <span class="n">adding</span>
+    <span class="ow">or</span> <span class="n">subtracting</span> <span class="n">a</span> <span class="n">relativedelta</span> <span class="k">with</span> <span class="n">relative</span> <span class="n">information</span> <span class="n">performs</span>
+    <span class="n">the</span> <span class="n">corresponding</span> <span class="n">aritmetic</span> <span class="n">operation</span> <span class="n">on</span> <span class="n">the</span> <span class="n">original</span> <span class="n">datetime</span> <span class="n">value</span>
+    <span class="k">with</span> <span class="n">the</span> <span class="n">information</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">relativedelta</span><span class="o">.</span>
+
+<span class="n">weekday</span><span class="p">:</span>
+    <span class="n">One</span> <span class="n">of</span> <span class="n">the</span> <span class="n">weekday</span> <span class="n">instances</span> <span class="p">(</span><span class="n">MO</span><span class="p">,</span> <span class="n">TU</span><span class="p">,</span> <span class="n">etc</span><span class="p">)</span><span class="o">.</span> <span class="n">These</span> <span class="n">instances</span> <span class="n">may</span>
+    <span class="n">receive</span> <span class="n">a</span> <span class="n">parameter</span> <span class="n">N</span><span class="p">,</span> <span class="n">specifying</span> <span class="n">the</span> <span class="n">Nth</span> <span class="n">weekday</span><span class="p">,</span> <span class="n">which</span> <span class="n">could</span>
+    <span class="n">be</span> <span class="n">positive</span> <span class="ow">or</span> <span class="n">negative</span> <span class="p">(</span><span class="n">like</span> <span class="n">MO</span><span class="p">(</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="n">MO</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span> <span class="n">Not</span> <span class="n">specifying</span>
+    <span class="n">it</span> <span class="ow">is</span> <span class="n">the</span> <span class="n">same</span> <span class="k">as</span> <span class="n">specifying</span> <span class="o">+</span><span class="mf">1.</span> <span class="n">You</span> <span class="n">can</span> <span class="n">also</span> <span class="n">use</span> <span class="n">an</span> <span class="n">integer</span><span class="p">,</span>
+    <span class="n">where</span> <span class="mi">0</span><span class="o">=</span><span class="n">MO</span><span class="o">.</span>
+
+<span class="n">leapdays</span><span class="p">:</span>
+    <span class="n">Will</span> <span class="n">add</span> <span class="n">given</span> <span class="n">days</span> <span class="n">to</span> <span class="n">the</span> <span class="n">date</span> <span class="n">found</span><span class="p">,</span> <span class="k">if</span> <span class="n">year</span> <span class="ow">is</span> <span class="n">a</span> <span class="n">leap</span>
+    <span class="n">year</span><span class="p">,</span> <span class="ow">and</span> <span class="n">the</span> <span class="n">date</span> <span class="n">found</span> <span class="ow">is</span> <span class="n">post</span> <span class="mi">28</span> <span class="n">of</span> <span class="n">february</span><span class="o">.</span>
+
+<span class="n">yearday</span><span class="p">,</span> <span class="n">nlyearday</span><span class="p">:</span>
+    <span class="n">Set</span> <span class="n">the</span> <span class="n">yearday</span> <span class="ow">or</span> <span class="n">the</span> <span class="n">non</span><span class="o">-</span><span class="n">leap</span> <span class="n">year</span> <span class="n">day</span> <span class="p">(</span><span class="n">jump</span> <span class="n">leap</span> <span class="n">days</span><span class="p">)</span><span class="o">.</span>
+    <span class="n">These</span> <span class="n">are</span> <span class="n">converted</span> <span class="n">to</span> <span class="n">day</span><span class="o">/</span><span class="n">month</span><span class="o">/</span><span class="n">leapdays</span> <span class="n">information</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>Here is the behavior of operations with relativedelta:</p>
+<ol class="arabic simple">
+<li>Calculate the absolute year, using the ‘year’ argument, or the
+original datetime year, if the argument is not present.</li>
+<li>Add the relative ‘years’ argument to the absolute year.</li>
+<li>Do steps 1 and 2 for month/months.</li>
+<li>Calculate the absolute day, using the ‘day’ argument, or the
+original datetime day, if the argument is not present. Then,
+subtract from the day until it fits in the year and month
+found after their operations.</li>
+<li>Add the relative ‘days’ argument to the absolute day. Notice
+that the ‘weeks’ argument is multiplied by 7 and added to
+‘days’.</li>
+<li>Do steps 1 and 2 for hour/hours, minute/minutes, second/seconds,
+microsecond/microseconds.</li>
+<li>If the ‘weekday’ argument is present, calculate the weekday,
+with the given (wday, nth) tuple. wday is the index of the
+weekday (0-6, 0=Mon), and nth is the number of weeks to add
+forward or backward, depending on its signal. Notice that if
+the calculated date is already Monday, for example, using
+(0, 1) or (0, -1) won’t change the day.</li>
+</ol>
+<dl class="method">
+<dt id="sqlplus.relativedelta.__add__">
+<code class="descname">__add__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__add__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__bool__">
+<code class="descname">__bool__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__bool__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__div__">
+<code class="descname">__div__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__div__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__eq__">
+<code class="descname">__eq__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__eq__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="sqlplus.relativedelta.__hash__">
+<code class="descname">__hash__</code><em class="property"> = None</em><a class="headerlink" href="#sqlplus.relativedelta.__hash__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>dt1=None</em>, <em>dt2=None</em>, <em>years=0</em>, <em>months=0</em>, <em>days=0</em>, <em>leapdays=0</em>, <em>weeks=0</em>, <em>hours=0</em>, <em>minutes=0</em>, <em>seconds=0</em>, <em>microseconds=0</em>, <em>year=None</em>, <em>month=None</em>, <em>day=None</em>, <em>weekday=None</em>, <em>yearday=None</em>, <em>nlyearday=None</em>, <em>hour=None</em>, <em>minute=None</em>, <em>second=None</em>, <em>microsecond=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__mul__">
+<code class="descname">__mul__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__mul__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__ne__">
+<code class="descname">__ne__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__ne__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__neg__">
+<code class="descname">__neg__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__neg__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__nonzero__">
+<code class="descname">__nonzero__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__nonzero__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__radd__">
+<code class="descname">__radd__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__radd__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__rmul__">
+<code class="descname">__rmul__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__rmul__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__rsub__">
+<code class="descname">__rsub__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__rsub__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__sub__">
+<code class="descname">__sub__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__sub__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.__truediv__">
+<code class="descname">__truediv__</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.__truediv__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlplus.relativedelta.normalized">
+<code class="descname">normalized</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sqlplus.relativedelta.normalized" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a version of this object represented entirely using integer
+values for the relative attributes.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">relativedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">hours</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">normalized</span><span class="p">()</span>
+<span class="go">relativedelta(days=1, hours=14)</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Returns a <code class="xref py py-class docutils literal"><span class="pre">dateutil.relativedelta.relativedelta</span></code> object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sqlplus.relativedelta.weeks">
+<code class="descname">weeks</code><a class="headerlink" href="#sqlplus.relativedelta.weeks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sqlplus.rd">
+<code class="descclassname">sqlplus.</code><code class="descname">rd</code><a class="headerlink" href="#sqlplus.rd" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#sqlplus.relativedelta" title="sqlplus.relativedelta"><code class="xref py py-class docutils literal"><span class="pre">relativedelta</span></code></a></p>
 </dd></dl>
 
 </div>
@@ -730,7 +949,7 @@
       &copy;2018, nalssee.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |

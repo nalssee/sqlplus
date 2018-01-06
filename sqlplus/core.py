@@ -20,8 +20,8 @@ from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
 from pypred import Predicate
 
-from .util import isnum, _listify, _peek_first, \
-    _random_string, ymd, dateconv
+from .util import isnum, _listify, _peek_first, _random_string
+
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -214,20 +214,6 @@ class Rows:
     def __add__(self, other):
         return self._newrows(self.rows + other.rows)
 
-    def isconsec(self, col, step, fmt):
-        """Tests if self.rows is consecutive calendrically
-
-        Args:
-            |  col(str): date column name.
-            |  step(str): "1 month" for example
-            |  fmt(str): format for the date column, ex) "%Y%m%d"
-
-        """
-        for x1, x2 in zip(self, self[1:]):
-            if ymd(x1[col], step, fmt) != x2[col]:
-                return False
-        return True
-
     def roll(self, *args):
         """Group rows over time, allowing overlaps
 
@@ -304,11 +290,23 @@ class Rows:
         Returns float
         """
         if wcol:
-            rs = self.isnum(col, wcol)
-            total = sum(r[wcol] for r in rs)
-            val = sum(r[col] * r[wcol] for r in rs) / total
+            denom = 0.0
+            wtot = 0.0
+            for r in self:
+                c, w = r[col], r[wcol]
+                if isnum(c, w):
+                    denom += c * w
+                    wtot += w
+            val = denom / wtot
         else:
-            val = st.mean(r[col] for r in self if isnum(r[col]))
+            denom = 0.0
+            cnt = 0
+            for r in self:
+                c = r[col]
+                if isnum(c):
+                    denom += c
+                    cnt += 1
+            val = denom / cnt
         return round(val, n) if n else val
 
     def ols(self, model):
@@ -546,8 +544,6 @@ class SQLPlus:
 
         # load some user-defined functions from util.py, istext unnecessary
         self.conn.create_function('isnum', -1, isnum)
-        self.conn.create_function('ymd', 3, ymd)
-        self.conn.create_function('dateconv', 3, dateconv)
 
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):
@@ -1069,7 +1065,3 @@ def _read_excel(filename):
     # it's OK. Excel files are small
     df = pd.read_excel(filename)
     yield from read_df(df)
-
-
-
-
