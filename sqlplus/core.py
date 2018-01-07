@@ -10,7 +10,6 @@ import inspect
 import operator
 import numpy as np
 import csv
-import statistics as st
 import pandas as pd
 
 from sas7bdat import SAS7BDAT
