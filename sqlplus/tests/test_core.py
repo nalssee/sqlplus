@@ -6,12 +6,12 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus import Row, Rows, dbopen, ymd, isnum, dateconv, grouper, \
+from sqlplus import Row, Rows, dbopen, dmath, isnum, dconv, grouper, \
                     getwd, pmap
 
 
 def addm(date, n):
-    return ymd(date, {'months': n}, '%Y%m')
+    return dmath(date, {'months': n}, '%Y%m')
 
 
 class TestRow(unittest.TestCase):
@@ -121,7 +121,7 @@ class TestRows(unittest.TestCase):
     def test_isconsec(self):
         seq = []
         for i in range(10):
-            seq.append(Row(date=ymd('20010128', {'days': i}, '%Y%m%d')))
+            seq.append(Row(date=dmath('20010128', {'days': i}, '%Y%m%d')))
         seq = Rows(seq)
         self.assertTrue(seq.isconsec('date', '1 day', '%Y%m%d'))
         del seq[3]
@@ -162,17 +162,18 @@ class TestRows(unittest.TestCase):
         rs3 = []
         start_date = '20010101'
         for i in range(30):
-            rs3.append(Row(date=ymd(start_date, {'days': i}, '%Y%m%d')))
+            rs3.append(Row(date=dmath(start_date, {'days': i}, '%Y%m%d')))
 
         lengths = []
         for rs0 in Rows(rs3).roll(14, 7, 'date',
-                                  lambda d: ymd(d, '1 day', '%Y%m%d'), True):
+                                  lambda d: dmath(d, '1 day', '%Y%m%d'), True):
             lengths.append(len(rs0))
         self.assertEqual(lengths, [14, 14, 14, 9, 2])
 
         # # should be able to handle missing dates
         rs = Rows([Row(date=addm('200101', i)) for i in range(10)])
         del rs[3]
+
         ls = [[int(x) for x in rs1['date']]
               for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1), True)]
         self.assertEqual(
@@ -296,7 +297,7 @@ class TestRows(unittest.TestCase):
     def test_numbering(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
-            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.register(lambda d: dconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
             c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             # oneway sorting
@@ -383,7 +384,7 @@ class TestRows(unittest.TestCase):
     def test_numbering2d(self):
         with dbopen('sample.db') as c:
             # now you need yyyy column
-            c.register(lambda d: dateconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
+            c.register(lambda d: dconv(d, '%Y-%m-%d', '%Y'), 'yearfn')
             c.create('select *, yearfn(date) as yyyy from acc1', 'tmpacc1')
 
             c.drop('tmpacc2')
@@ -423,7 +424,7 @@ class TestRows(unittest.TestCase):
 # This should be defined in 'main' if you want to exploit multiple cores
 # in Windows, The function itself here is just a giberrish for testing
 def avg_id(rs):
-    r = Row(date=dateconv(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
+    r = Row(date=dconv(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
     r.orderid = round(rs.avg('orderid'))
     r.customerid = round(rs.avg('orderid'))
     r.employeeid = round(rs.avg('employeeid'))
@@ -435,7 +436,7 @@ class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
     def test_apply(self):
         def to_month(r):
-            r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
+            r.date = dconv(r.orderdate, '%Y-%m-%d', '%Y%m')
             return r
 
         with dbopen('sample.db') as q:
@@ -574,7 +575,7 @@ class TestSQLPlus(unittest.TestCase):
             q.drop('customers1')
 
             def to_month(r):
-                r.date = dateconv(r.orderdate, '%Y-%m-%d', '%Y%m')
+                r.date = dconv(r.orderdate, '%Y-%m-%d', '%Y%m')
                 return r
             tseq = (to_month(r) for r in q.fetch('orders'))
             q.insert(tseq, 'orders1', True)

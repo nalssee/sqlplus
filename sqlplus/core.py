@@ -21,7 +21,7 @@ from itertools import groupby, islice, chain, tee, \
 from pypred import Predicate
 
 from .util import isnum, _listify, _peek_first, \
-    _random_string, ymd, dateconv
+    _random_string, dmath, dconv
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -224,7 +224,7 @@ class Rows:
 
         """
         for x1, x2 in zip(self, self[1:]):
-            if ymd(x1[col], step, fmt) != x2[col]:
+            if dmath(x1[col], step, fmt) != x2[col]:
                 return False
         return True
 
@@ -508,7 +508,7 @@ class SQLPlus:
             |  temp_store(int)
 
         Additional Functions in SQL:
-            dateconv, ymd, isnum
+            dconv, dmath, isnum
         """
         global WORKSPACE
 
@@ -523,6 +523,8 @@ class SQLPlus:
         # you may want to pass sqlite3.deltypes or something like that
         # but at this moment I think that will make matters worse
         self.conn = sqlite3.connect(dbfile)
+        # You can safely uncomment the following line
+        # self.conn.row_factory = sqlite3.Row
 
         # row_factory is problematic don't use it
         # you can avoid the problems but not worth it
@@ -545,8 +547,8 @@ class SQLPlus:
 
         # load some user-defined functions from util.py, istext unnecessary
         self.conn.create_function('isnum', -1, isnum)
-        self.conn.create_function('ymd', 3, ymd)
-        self.conn.create_function('dateconv', 3, dateconv)
+        self.conn.create_function('dmath', 3, dmath)
+        self.conn.create_function('dconv', 3, dconv)
 
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):

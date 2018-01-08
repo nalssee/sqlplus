@@ -11,7 +11,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def dateconv(date, infmt, outfmt):
+def dconv(date, infmt, outfmt):
     """Converts date format
 
     Args:
@@ -26,6 +26,50 @@ def dateconv(date, infmt, outfmt):
     Returns str
     """
     return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
+
+
+def dmath(date, size, fmt):
+    """Date arithmetic
+
+    Args:
+        |  date(int or str): 19991231 or "1999-12-31'
+        |  size(str): "3 months"
+        |  fmt(str): date format
+
+    Returns int if input(date) is int else str
+    """
+    if isinstance(size, str):
+        n, unit = size.split()
+        if not unit.endswith('s'):
+            unit = unit + 's'
+        size = {unit: int(n)}
+    d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
+    d2 = d1.strftime(fmt)
+    return int(d2) if isinstance(date, int) else d2
+
+
+# If the return value is True it is converted to 1 or 0 in sqlite3
+# istext is unncessary for validity check
+def isnum(*xs):
+    "Tests if x is numeric"
+    try:
+        for x in xs:
+            float(x)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+# copied from 'itertools'
+def grouper(iterable, n, fillvalue=None):
+    """Collect data into fixed-length chunks or blocks, generator
+
+    Examples:
+        >>> grouper('ABCDEFG', 3, 'x')
+        ABC DEF Gxx"
+    """
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def pmap(fn, *seqs, args=(), max_workers=None):
@@ -46,17 +90,6 @@ def pmap(fn, *seqs, args=(), max_workers=None):
                 gs = (x for x in gs if x != tempstr)
                 yield from executor.map(fn, *zip(*gs))
 
-
-# copied from 'itertools'
-def grouper(iterable, n, fillvalue=None):
-    """Collect data into fixed-length chunks or blocks, generator
-
-    Examples:
-        >>> grouper('ABCDEFG', 3, 'x')
-        ABC DEF Gxx"
-    """
-    args = [iter(iterable)] * n
-    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def _random_string(nchars=20):
@@ -103,33 +136,3 @@ def _listify(x):
             return [x]
 
 
-# If the return value is True it is converted to 1 or 0 in sqlite3
-# istext is unncessary for validity check
-def isnum(*xs):
-    "Tests if x is numeric"
-    try:
-        for x in xs:
-            float(x)
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def ymd(date, size, fmt):
-    """Date arithmetic
-
-    Args:
-        |  date(int or str): 19991231 or "1999-12-31'
-        |  size(str): "3 months"
-        |  fmt(str): date format
-
-    Returns int if input(date) is int else str
-    """
-    if isinstance(size, str):
-        n, unit = size.split()
-        if not unit.endswith('s'):
-            unit = unit + 's'
-        size = {unit: int(n)}
-    d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
-    d2 = d1.strftime(fmt)
-    return int(d2) if isinstance(date, int) else d2
