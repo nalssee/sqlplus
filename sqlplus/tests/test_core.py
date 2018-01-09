@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+import sqlite3
+import pandas as pd
 
 TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
@@ -173,7 +175,6 @@ class TestRows(unittest.TestCase):
         # # should be able to handle missing dates
         rs = Rows([Row(date=addm('200101', i)) for i in range(10)])
         del rs[3]
-
         ls = [[int(x) for x in rs1['date']]
               for rs1 in rs.roll(5, 4, 'date', lambda d: addm(d, 1), True)]
         self.assertEqual(
@@ -434,6 +435,16 @@ def avg_id(rs):
 
 class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
+    def test_fch(self):
+        with dbopen('sample.db') as c:
+            for r in c.fch('orders'):
+                self.assertEqual(type(r), sqlite3.Row)
+                break
+
+        with dbopen('sample.db') as c:
+            for df in c.fch('orders', group='shipperid'):
+                self.assertEqual(type(df), pd.core.frame.DataFrame)
+
     def test_apply(self):
         def to_month(r):
             r.date = dconv(r.orderdate, '%Y-%m-%d', '%Y%m')

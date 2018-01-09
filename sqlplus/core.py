@@ -71,6 +71,7 @@ def dbopen(dbfile, cache_size=100000, temp_store=2):
         splus.conn.close()
 
 
+
 # aggreate function builder
 class _AggBuilder:
     def __init__(self):
@@ -524,7 +525,7 @@ class SQLPlus:
         # but at this moment I think that will make matters worse
         self.conn = sqlite3.connect(dbfile)
         # You can safely uncomment the following line
-        # self.conn.row_factory = sqlite3.Row
+        self.conn.row_factory = sqlite3.Row
 
         # row_factory is problematic don't use it
         # you can avoid the problems but not worth it
@@ -552,6 +553,15 @@ class SQLPlus:
 
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):
+        yield from self._fetch(tname, cols, where, order, group, roll, False)
+
+    # this is for performance, No idea when I can use it
+    def fch(self, tname, cols=None, where=None,
+            order=None, group=None, roll=None):
+        yield from self._fetch(tname, cols, where, order, group, roll, True)
+
+    def _fetch(self, tname, cols=None, where=None,
+               order=None, group=None, roll=None, raw=True):
         """Generates a sequence of rows from a table.
 
         Args:
@@ -598,16 +608,19 @@ class SQLPlus:
         if len(columns) != len(set(columns)):
             raise ValueError('duplicates in columns names')
 
-        rows = _build_rows(qrows, columns)
+        buildfn = _build_df if raw else _build_rows
         if group:
-            for _, rs in groupby(rows, _build_keyfn(group)):
-                yield Rows(rs)
+            for _, rs in groupby(qrows, _build_keyfn(group)):
+                yield buildfn(rs, columns)
         elif roll:
-            for ls in _roll(rows, size, step,
+            for ls in _roll(qrows, size, step,
                             _build_keyfn(dcol), nextfn, longest):
-                yield Rows(ls)
+                yield buildfn(ls, columns)
         else:
-            yield from rows
+            if raw:
+                yield from qrows
+            else:
+                yield from (_build_row(r, columns) for r in qrows)
 
     def insert(self, rs, name, overwrite=False, pkeys=None):
         """Insert Row, Rows or sequence of Row(s)
@@ -956,13 +969,22 @@ def _build_query(tname, cols=None, where=None, order=None):
 
 
 # sequence row values to rows
-def _build_rows(seq_values, cols):
-    "build rows from an iterator of values"
-    for vals in seq_values:
-        r = Row()
-        for col, val in zip(cols, vals):
-            r[col] = val
-        yield r
+def _build_rows(qrows, cols):
+    result = []
+    for qr in qrows:
+        result.append(_build_row(qr, cols))
+    return Rows(result)
+
+
+def _build_row(qr, cols):
+    r = Row()
+    for c, v in zip(cols, qr):
+        r[c] = v
+    return r
+
+
+def _build_df(qrows, cols):
+    return pd.DataFrame([tuple(qr) for qr in qrows], columns=cols)
 
 
 def _get_name_from_query(query):

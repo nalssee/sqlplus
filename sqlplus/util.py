@@ -91,7 +91,6 @@ def pmap(fn, *seqs, args=(), max_workers=None):
                 yield from executor.map(fn, *zip(*gs))
 
 
-
 def _random_string(nchars=20):
     "Generates a random string of lengh 'n' with alphabets and digits. "
     chars = string.ascii_letters + string.digits
