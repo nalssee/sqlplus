@@ -379,8 +379,8 @@ class Rows:
         """
         # key can be a fn but not recommended
         keyfn = _build_keyfn(key)
-        for _, rs in groupby(self.order(keyfn), keyfn):
-            yield self._newrows(list(rs))
+        self.order(keyfn)
+        yield from (self._newrows(list(rs)) for _, rs in groupby(self, keyfn))
 
     def chunks(self, n, col=None, le=True):
         """Yields Rows, useful for building portfolios
@@ -406,8 +406,7 @@ class Rows:
             # then it is a list of percentiles for each chunk
             assert sum(n) <= 1, f"Sum of percentils for chunks must be <= 1.0"
             ns = [int(x * size) for x in accumulate(n)]
-            for a, b in zip([0] + ns, ns):
-                yield self[a:b]
+            yield from (self[a:b] for a, b in zip([0] + ns, ns))
         # n is a list of break points
         else:
             self.order(col)
@@ -431,20 +430,13 @@ class Rows:
     def df(self, cols=None):
         """Returns pandas data frame
         """
-        def _safe_values(rows, cols):
-            "assert all rows have cols"
-            for r in rows:
-                assert r.columns == cols, str(r)
-                yield r.values
-
         if cols:
             cols = _listify(cols)
             return pd.DataFrame([[r[col] for col in cols] for r in self.rows],
                                 columns=cols)
         else:
             cols = self.rows[0].columns
-            seq = _safe_values(self.rows, cols)
-            return pd.DataFrame(list(seq), columns=cols)
+            return pd.DataFrame([r.values for r in self], columns=cols)
 
     def numbering(self, d, dep=False, prefix='pn_'):
         """Returns self with additional columns with portfolio numbering
@@ -598,12 +590,11 @@ class SQLPlus:
             raise ValueError('duplicates in columns names')
 
         if group:
-            for _, rs in groupby(qrows, _build_keyfn(group)):
-                yield _build_rows(rs, columns)
+            gby = groupby(qrows, _build_keyfn(group))
+            yield from (_build_rows(rs, columns) for _, rs in gby)
         elif roll:
-            for ls in _roll(qrows, size, step,
-                            _build_keyfn(dcol), nextfn, longest):
-                yield _build_rows(ls, columns)
+            rll = _roll(qrows, size, step, _build_keyfn(dcol), nextfn, longest)
+            yield from (_build_rows(ls, columns) for ls in rll)
         else:
             yield from (_build_row(r, columns) for r in qrows)
 
@@ -955,10 +946,7 @@ def _build_query(tname, cols=None, where=None, order=None):
 
 # sequence row values to rows
 def _build_rows(qrows, cols):
-    result = []
-    for qr in qrows:
-        result.append(_build_row(qr, cols))
-    return Rows(result)
+    return Rows([_build_row(qr, cols) for qr in qrows])
 
 
 def _build_row(qr, cols):
