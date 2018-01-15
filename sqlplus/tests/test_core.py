@@ -435,16 +435,6 @@ def avg_id(rs):
 
 class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
-    def test_fch(self):
-        with dbopen('sample.db') as c:
-            for r in c.fch('orders'):
-                self.assertEqual(type(r), sqlite3.Row)
-                break
-
-        with dbopen('sample.db') as c:
-            for df in c.fch('orders', group='shipperid'):
-                self.assertEqual(type(df), pd.core.frame.DataFrame)
-
     def test_apply(self):
         def to_month(r):
             r.date = dconv(r.orderdate, '%Y-%m-%d', '%Y%m')

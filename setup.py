@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sqlplus',
-      version='0.5.1',
+      version='0.5.2',
       description='data work tools',
       url='https://github.com/nalssee/sqlplus.git',
       author='nalssee',

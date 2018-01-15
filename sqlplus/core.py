@@ -553,15 +553,6 @@ class SQLPlus:
 
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, roll=None):
-        yield from self._fetch(tname, cols, where, order, group, roll, False)
-
-    # this is for performance, No idea when I can use it
-    def fch(self, tname, cols=None, where=None,
-            order=None, group=None, roll=None):
-        yield from self._fetch(tname, cols, where, order, group, roll, True)
-
-    def _fetch(self, tname, cols=None, where=None,
-               order=None, group=None, roll=None, raw=True):
         """Generates a sequence of rows from a table.
 
         Args:
@@ -608,19 +599,15 @@ class SQLPlus:
         if len(columns) != len(set(columns)):
             raise ValueError('duplicates in columns names')
 
-        buildfn = _build_df if raw else _build_rows
         if group:
             for _, rs in groupby(qrows, _build_keyfn(group)):
-                yield buildfn(rs, columns)
+                yield _build_rows(rs, columns)
         elif roll:
             for ls in _roll(qrows, size, step,
                             _build_keyfn(dcol), nextfn, longest):
-                yield buildfn(ls, columns)
+                yield _build_rows(ls, columns)
         else:
-            if raw:
-                yield from qrows
-            else:
-                yield from (_build_row(r, columns) for r in qrows)
+            yield from (_build_row(r, columns) for r in qrows)
 
     def insert(self, rs, name, overwrite=False, pkeys=None):
         """Insert Row, Rows or sequence of Row(s)
@@ -981,10 +968,6 @@ def _build_row(qr, cols):
     for c, v in zip(cols, qr):
         r[c] = v
     return r
-
-
-def _build_df(qrows, cols):
-    return pd.DataFrame([tuple(qr) for qr in qrows], columns=cols)
 
 
 def _get_name_from_query(query):
