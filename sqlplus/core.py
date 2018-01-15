@@ -71,7 +71,6 @@ def dbopen(dbfile, cache_size=100000, temp_store=2):
         splus.conn.close()
 
 
-
 # aggreate function builder
 class _AggBuilder:
     def __init__(self):
@@ -284,8 +283,7 @@ class Rows:
         """
         if isinstance(pred, str):
             obj = Predicate(pred)
-            return self._newrows([r for r in self
-                                  if obj.evaluate(r._dict)])
+            return self._newrows([r for r in self if obj.evaluate(r._dict)])
         return self._newrows([r for r in self if pred(r)])
 
     def isnum(self, *cols):
