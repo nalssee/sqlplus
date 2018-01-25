@@ -6,7 +6,6 @@ __pycache__
 .vscode/
 tags
 build/
-**/sample.db
 .idea/
 venv/
 

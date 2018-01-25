@@ -5,7 +5,7 @@ import random
 import string
 import concurrent.futures
 import multiprocessing as mp
-from itertools import chain, zip_longest, repeat
+from itertools import chain, zip_longest, repeat, chain
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -89,6 +89,7 @@ def pmap(fn, *seqs, args=(), max_workers=None):
                               max_workers, tempstr):
                 gs = (x for x in gs if x != tempstr)
                 yield from executor.map(fn, *zip(*gs))
+
 
 
 def _random_string(nchars=20):

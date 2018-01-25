@@ -1,9 +1,9 @@
 """
 """
 
-from .core import Row, Rows, dbopen, setwd, getwd, SQLPlus
-from .util import pmap, isnum, dconv, dmath, grouper
+from .core import Row, Rows, connect, setdir
+from .util import isnum, dconv, dmath, grouper, pmap
 
 
-__all__ = ['dbopen', 'SQLPlus', 'Row', 'Rows', 'setwd', 'getwd',
+__all__ = ['connect', 'Row', 'Rows', 'setdir',
            'isnum', 'dconv', 'dmath', 'grouper', 'pmap']

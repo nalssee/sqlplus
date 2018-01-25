@@ -1,4 +1,4 @@
-OrderID,CustomerID,EmployeeID,OrderDate,ShipperID
+orderid,customerid,employeeid,orderdate,shipperid
 10248,90,5,1996-07-04,3
 10249,81,6,1996-07-05,1
 10250,34,4,1996-07-08,2

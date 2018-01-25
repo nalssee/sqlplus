@@ -18,7 +18,6 @@ from collections import Iterable
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
-from pypred import Predicate
 
 from .util import isnum, _listify, _peek_first, \
     _random_string, dmath, dconv
@@ -31,7 +30,7 @@ import statsmodels.api as sm
 WORKSPACE = ''
 
 
-def setwd(path):
+def setdir(path):
     """Set working directory
 
     Args:
@@ -43,17 +42,13 @@ def setwd(path):
         os.makedirs(WORKSPACE)
 
 
-def getwd():
-    return WORKSPACE
-
-
 @contextmanager
-def dbopen(dbfile, cache_size=100000, temp_store=2):
+def connect(dbfile, cache_size=100000, temp_store=2):
     # temp_store might be deprecated
     """ Connects to SQL database, decorated with contextmanager
 
     Usage:
-        with dbopen('dbfile.db') as conn:
+        with connect('dbfile.db') as conn:
             conn.load('sample.csv')
 
     Args:
@@ -228,27 +223,6 @@ class Rows:
                 return False
         return True
 
-    def roll(self, *args):
-        """Group rows over time, allowing overlaps
-
-        Args:
-            |  (size(int), step(int), date_column(str),
-            |   longest(bool), nextfn(FN))
-            |  No need to memorize the order, just size comes before step
-            |  longest: False(default) => length of periods is the "size"
-            |  nextfn: None(default) => No safe guard
-        """
-        size, step = [x for x in args
-                      if isinstance(x, int) and not isinstance(x, bool)]
-        dcol = [x for x in args if isinstance(x, str)][0]
-        nextfn = _getone([x for x in args if callable(x)], None)
-        longest = _getone([x for x in args if isinstance(x, bool)], False)
-
-        self.order(dcol)
-        for ls in _roll(self.rows, size, step,
-                        _build_keyfn(dcol), nextfn, longest):
-            yield self._newrows(ls)
-
     # destructive!!!
     def order(self, key, reverse=False):
         """Order rows by key
@@ -281,9 +255,6 @@ class Rows:
         Args:
             pred(str or fn): "year > 1990 and size < 100" or predicate
         """
-        if isinstance(pred, str):
-            obj = Predicate(pred)
-            return self._newrows([r for r in self if obj.evaluate(r._dict)])
         return self._newrows([r for r in self if pred(r)])
 
     def isnum(self, *cols):
@@ -375,13 +346,20 @@ class Rows:
         Args:
             key(str or list of str or fn): columnn name or fn to group
 
-        Yields Rows
+        Returns: list of Rows
         """
         # key can be a fn but not recommended
         keyfn = _build_keyfn(key)
         self.order(keyfn)
-        yield from (self._newrows(list(rs)) for _, rs in groupby(self, keyfn))
+        return [self._newrows(list(rs)) for _, rs in groupby(self, keyfn)]
 
+    def overlap(self, size, step=1):
+        result = []
+        for i in range(0, len(self), step):
+            result.append(self[i:i + size])
+        return result
+
+    # TODO: generator -> ordinary function
     def chunks(self, n, col=None, le=True):
         """Yields Rows, useful for building portfolios
 
@@ -542,7 +520,7 @@ class SQLPlus:
         self.conn.create_function('dconv', 3, dconv)
 
     def fetch(self, tname, cols=None, where=None,
-              order=None, group=None, roll=None):
+              order=None, group=None, overlap=None):
         """Generates a sequence of rows from a table.
 
         Args:
@@ -551,54 +529,56 @@ class SQLPlus:
             |  where(str): where clause in SQL query
             |  order(str or list of str): comma separated str
             |  group(str or list of str): comma separated str
-            |  roll:
-            |      (size(int), step(int), date_column(str),
-            |       longest(bool), nextfn(FN))
-            |      No need to memorize the order, just size comes before step
-            |      longest: False(default) => length of periods is the "size"
-            |      nextfn: None(default) => No safe guard
-
-        Note:
-            Only one of order, group, and roll is allowed
+            |  overlap: int or (int, int)
 
         Yields:
             Row or Rows
         """
 
-        # At most one among order, group and roll
-        if (1 if order else 0) + (1 if group else 0) + (1 if roll else 0) > 1:
-            raise ValueError("""At most one arg allowed
-                                among order, group and roll""")
-        # set implicit order
-        if group:
-            order = group
-        elif roll:
-            # the order of roll should be somewhat loose,
-            # very hard to memorize it
-            # just remember that 'size' comes before 'step'
-            size, step = [x for x in roll
-                          if isinstance(x, int) and not isinstance(x, bool)]
-            dcol = [x for x in roll if isinstance(x, str)][0]
-            nextfn = _getone([x for x in roll if callable(x)], None)
-            longest = _getone([x for x in roll if isinstance(x, bool)], False)
-            order = dcol
+        def _overlap(seq, size, step):
+            """generates chunks of seq for rollover tasks.
+            seq is assumed to be ordered
+            """
+
+            ss = tee(seq, size)
+            # consume
+            for i, s in enumerate(ss):
+                for i1 in range(i):
+                    next(s)
+            xss = zip_longest(*ss, fillvalue=None)
+            for xs in islice(xss, 0, None, step):
+                # lets go easy
+                yield [x for x in xs if x != None]
+
+        order = _listify(order) if order else []
+        group = _listify(group) if group else []
+
+        order = group + order
 
         qrows = self._cursor.execute(_build_query(tname, cols, where, order))
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
         if len(columns) != len(set(columns)):
-            raise ValueError('duplicates in columns names')
+            raise ValueError('Duplicates in columns names')
 
-        if group:
+        if overlap:
+            size, step = (overlap, 1) if isnum(overlap) else overlap
+            if group:
+                grows = (_build_rows(rs, columns)
+                         for _, rs in groupby(qrows, _build_keyfn(group)))
+                yield from (Rows(chain(*xs))
+                            for xs in _overlap(grows, size, step))
+            else:
+                yield from (_build_rows(rs, columns)
+                            for rs in _overlap(qrows, size, step))
+        elif group:
             gby = groupby(qrows, _build_keyfn(group))
             yield from (_build_rows(rs, columns) for _, rs in gby)
-        elif roll:
-            rll = _roll(qrows, size, step, _build_keyfn(dcol), nextfn, longest)
-            yield from (_build_rows(ls, columns) for ls in rll)
+
         else:
             yield from (_build_row(r, columns) for r in qrows)
 
-    def insert(self, rs, name, overwrite=False, pkeys=None):
+    def insert(self, rs, name, overwrite=True, pkeys=None):
         """Insert Row, Rows or sequence of Row(s)
 
         Args:
@@ -674,11 +654,11 @@ class SQLPlus:
 
         name = name or fname
         if name in self.tables:
-            print(f"Table {name} exists.")
             return
         if fn:
             seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
+
 
     def to_csv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
@@ -896,6 +876,24 @@ class SQLPlus:
         query = f"select {allcols} from {tname0} {jcs}"
         self.create(query, name, pkeys)
 
+    def split(self, tname, db_conds):
+        pkeys = self._pkeys(tname)
+        for dbname, cond in db_conds.items():
+            with connect(dbname) as c:
+                c.insert(self.fetch(tname, where=cond), tname, pkeys=pkeys)
+
+    def collect(self, tname, dbnames):
+        with connect(dbnames[0]) as c:
+            cols = c._cols(f"select * from {tname}")
+            pkeys = c._pkeys(tname)
+
+        self.drop(tname)
+        self.sql(_create_statement(tname, cols, pkeys))
+
+        for dbname in dbnames:
+            with connect(dbname) as c:
+                self.insert(c.fetch(tname), tname, overwrite=False)
+
 
 def _build_keyfn(key):
     " if key is a string return a key function "
@@ -970,47 +968,6 @@ def _getone(xs, default):
     return xs[0] if xs else default
 
 
-def _roll(seq, period, jump, keyfn, nextfn, longest):
-    """generates chunks of seq for rollover tasks.
-    seq is assumed to be ordered
-    """
-    def chunk(seq):
-        fst, seq1 = _peek_first(seq)
-        k0 = keyfn(fst)
-        for k1, sq in groupby(seq1, keyfn):
-            if k0 == k1:
-                k0 = nextfn(k1)
-                # you must realize them first
-                yield list(sq)
-            else:
-                # some missings
-                while k0 < k1:
-                    k0 = nextfn(k0)
-                    yield []
-                k0 = nextfn(k1)
-                # you must realize them first
-                yield list(sq)
-
-    def chunk_unsafe(seq):
-        for _, sq, in groupby(seq, keyfn):
-            yield list(sq)
-
-    gss = tee(chunk(seq) if nextfn else chunk_unsafe(seq), period)
-    for i, gs in enumerate(gss):
-        # consume
-        for i1 in range(i):
-            next(gs)
-
-    xss = zip_longest(*gss, fillvalue=[]) if longest else zip(*gss)
-    for xs in islice(xss, 0, None, jump):
-        # this might be a bit inefficient for some cases
-        # but this is convenient, let's just go easy,
-        # not making mistakes is much more important
-        result = list(chain(*xs))
-        if len(result) > 0:
-            yield result
-
-
 def _read_csv(filename, encoding='utf-8'):
     "Loads well-formed csv file, 1 header line and the rest is data "
     def is_empty_line(line):
@@ -1067,3 +1024,5 @@ def _read_excel(filename):
     # it's OK. Excel files are small
     df = pd.read_excel(filename)
     yield from read_df(df)
+
+
