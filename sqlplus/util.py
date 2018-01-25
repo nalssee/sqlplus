@@ -1,6 +1,7 @@
 """
 Functions that are not specific to "Row" objects
 """
+
 import random
 import string
 import concurrent.futures
@@ -72,23 +73,18 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
-def pmap(fn, *seqs, args=(), max_workers=None):
-    """ Parallel map
+# def pmap(fn, *seqs, args=(), max_workers=2, chunksize=None):
+#     """ Parallel map
+#     """
+#     max_workers = min(max_workers, mp.cpu_count())
+#     chunksize = chunksize or max_workers
 
-    |  fn takes a zipped elts of seqs and 'args' as arguments
-    |  max_workers is the minimum of 1 and max cpu count of the machine
-    """
-    max_workers = min(max_workers if isinstance(max_workers, int) else 1,
-                      mp.cpu_count())
-    if max_workers == 1:
-        yield from (fn(*x, *args) for x in zip(*seqs))
-    else:
-        tempstr = _random_string()
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            for gs in grouper(zip(*seqs, *(repeat(a) for a in args)),
-                              max_workers, tempstr):
-                gs = (x for x in gs if x != tempstr)
-                yield from executor.map(fn, *zip(*gs))
+#     tempstr = _random_string()
+#     with concurrent.futures.ProcessPoolExecutor(max_workers) as executor:
+#         for gs in grouper(zip(*seqs, *(repeat(a) for a in args)),
+#                           max_workers, tempstr):
+#             gs = (x for x in gs if x != tempstr)
+#             yield from executor.map(fn, *zip(*gs), chunksize=chunksize)
 
 
 

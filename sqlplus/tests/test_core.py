@@ -2,6 +2,7 @@ import os
 import unittest
 from sqlplus import *
 from itertools import chain
+from concurrent.futures import ProcessPoolExecutor
 
 
 setdir('data')
@@ -9,13 +10,10 @@ setdir('data')
 
 def overlap(xs, size, step=1):
     result = []
-    if isinstance(xs[0], Rows):
-        for i in range(0, len(xs), step):
-            result.append(Rows(chain(*xs[i: i + size])))
-    else:
-        for i in range(0, len(xs), step):
-            result.append(xs[i:i + size])
+    for i in range(0, len(xs), step):
+        result.append(Rows(chain(*xs[i: i + size])))
     return result
+
 
 def price_sum(dbname):
     with connect(dbname) as c:
@@ -89,9 +87,8 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(len(c.rows('orders1')), 196)
         os.remove('data/orders1.csv')
 
-    def test_pmap(self):
+    def test_split_and_collect(self):
         with connect(":memory:") as c:
-            c.drop('products')
             c.load('products.csv')
             c.split('products', {'test1.db': 'categoryid < 5',
                                  'test2.db': 'categoryid >= 5'})
@@ -100,14 +97,14 @@ class TestConnection(unittest.TestCase):
             with connect('test2.db') as c2:
                 self.assertEqual(len(c2.rows('products')), 30)
 
-            next(pmap(price_sum, ['test1.db', 'test2.db'], max_workers=2))
+            with ProcessPoolExecutor() as executor:
+                executor.map(price_sum, ['test1.db', 'test2.db'])
 
             c.collect('psum', ['test1.db', 'test2.db'])
             self.assertEqual(len(c.rows('psum')), 8)
 
         os.remove('data/test1.db')
         os.remove('data/test2.db')
-
 
     def test_join(self):
         with connect(':memory:') as c:
