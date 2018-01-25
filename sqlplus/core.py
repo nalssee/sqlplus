@@ -876,12 +876,6 @@ class SQLPlus:
         query = f"select {allcols} from {tname0} {jcs}"
         self.create(query, name, pkeys)
 
-    def split(self, tname, db_conds):
-        pkeys = self._pkeys(tname)
-        for dbname, cond in db_conds.items():
-            with connect(dbname) as c:
-                c.insert(self.fetch(tname, where=cond), tname, pkeys=pkeys)
-
     def _collect(self, tname, dbnames):
         with connect(dbnames[0]) as c:
             cols = c._cols(f"select * from {tname}")
