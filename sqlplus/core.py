@@ -12,7 +12,8 @@ import numpy as np
 import csv
 import statistics as st
 import pandas as pd
-
+import shutil
+from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
 from collections import Iterable
 from contextlib import contextmanager
@@ -881,7 +882,7 @@ class SQLPlus:
             with connect(dbname) as c:
                 c.insert(self.fetch(tname, where=cond), tname, pkeys=pkeys)
 
-    def collect(self, tname, dbnames):
+    def _collect(self, tname, dbnames):
         with connect(dbnames[0]) as c:
             cols = c._cols(f"select * from {tname}")
             pkeys = c._pkeys(tname)
@@ -892,6 +893,31 @@ class SQLPlus:
         for dbname in dbnames:
             with connect(dbname) as c:
                 self.insert(c.fetch(tname), tname, overwrite=False)
+
+    def pwork(self, fn, tname, args):
+        n = len(args)
+        tempdbs = ['temp' + _random_string() + str(i) for i in range(n)]
+        pkeys = self._pkeys(tname)
+        try:
+            with connect(tempdbs[0]) as c:
+                c.insert(self.fetch(tname), tname, pkeys=pkeys)
+            for tempdb in tempdbs[1:]:
+                shutil.copyfile(os.path.join(WORKSPACE, tempdbs[0]),
+                                os.path.join(WORKSPACE, tempdb))
+
+            with ProcessPoolExecutor(max_workers=n) as exe:
+                exe.map(fn, tempdbs, args)
+
+            with connect(tempdbs[0]) as c:
+                tables = [t for t in c.tables if t != tname]
+
+            for table in tables:
+                self._collect(table, tempdbs)
+        finally:
+            for tempdb in tempdbs:
+                fname = os.path.join(WORKSPACE, tempdb)
+                if os.path.isfile(fname):
+                    os.remove(fname)
 
 
 def _build_keyfn(key):
