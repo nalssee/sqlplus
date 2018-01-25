@@ -4,9 +4,7 @@ Functions that are not specific to "Row" objects
 
 import random
 import string
-import concurrent.futures
-import multiprocessing as mp
-from itertools import chain, zip_longest, repeat, chain
+from itertools import zip_longest, chain
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -73,21 +71,6 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
-# def pmap(fn, *seqs, args=(), max_workers=2, chunksize=None):
-#     """ Parallel map
-#     """
-#     max_workers = min(max_workers, mp.cpu_count())
-#     chunksize = chunksize or max_workers
-
-#     tempstr = _random_string()
-#     with concurrent.futures.ProcessPoolExecutor(max_workers) as executor:
-#         for gs in grouper(zip(*seqs, *(repeat(a) for a in args)),
-#                           max_workers, tempstr):
-#             gs = (x for x in gs if x != tempstr)
-#             yield from executor.map(fn, *zip(*gs), chunksize=chunksize)
-
-
-
 def _random_string(nchars=20):
     "Generates a random string of lengh 'n' with alphabets and digits. "
     chars = string.ascii_letters + string.digits
@@ -130,5 +113,3 @@ def _listify(x):
             return list(iter(x))
         except TypeError:
             return [x]
-
-

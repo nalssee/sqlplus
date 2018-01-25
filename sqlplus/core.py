@@ -548,7 +548,7 @@ class SQLPlus:
             xss = zip_longest(*ss, fillvalue=None)
             for xs in islice(xss, 0, None, step):
                 # lets go easy
-                yield [x for x in xs if x != None]
+                yield [x for x in xs if x is not None]
 
         order = _listify(order) if order else []
         group = _listify(group) if group else []
@@ -658,7 +658,6 @@ class SQLPlus:
         if fn:
             seq = (fn(r) for r in seq)
         self.insert(seq, name, True, pkeys)
-
 
     def to_csv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
