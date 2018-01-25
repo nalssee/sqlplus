@@ -1,9 +1,8 @@
 import os
 import unittest
-from sqlplus import *
+from sqlplus import connect, Rows, Row, isnum, setdir
 from itertools import chain
 from concurrent.futures import ProcessPoolExecutor
-
 
 setdir('data')
 
@@ -30,6 +29,7 @@ class TestConnection(unittest.TestCase):
     def test_avg_by_group(self):
         with connect('test.db') as c:
             c.load('products.csv')
+
             def products_avg():
                 for rs in c.fetch('products', group="categoryid"):
                     r = Row()
@@ -41,18 +41,20 @@ class TestConnection(unittest.TestCase):
 
             self.assertEqual(c._pkeys('products_avg'), ['categoryid'])
             self.assertEqual(c.rows('products_avg')['agg_price'],
-                [455.75, 276.75, 327.08, 287.3, 141.75, 324.04, 161.85, 248.19])
+                             [455.75, 276.75, 327.08, 287.3,
+                              141.75, 324.04, 161.85, 248.19])
             self.assertEqual(c.rows('products_avg')['n'],
-                [12, 12, 13, 10, 7, 6, 5, 12])
+                             [12, 12, 13, 10, 7, 6, 5, 12])
 
         os.remove('data/test.db')
 
     def test_group_and_overlap(self):
         with connect(':memory:') as c:
             c.load('orders.csv')
-            c.create("select *, dconv(orderdate, '%Y-%m-%d', '%Y-%m') as ym from orders")
+            c.create("""select *, dconv(orderdate, '%Y-%m-%d', '%Y-%m') as ym
+            from orders""")
             ls = []
-            for rs in c.fetch('orders', group='ym', overlap=(5, 2)):
+            for rs in c.fetch('orders', group='ym', overlap=(4, 2)):
                 ls.append([len(rs1) for rs1 in rs.group('ym')])
             self.assertEqual(ls, [
                 [22, 25, 23, 26, 25],
@@ -122,7 +124,8 @@ class TestRows(unittest.TestCase):
         with connect(':memory:') as c:
             c.load('products.csv')
             rss = c.rows('products').group('categoryid')
-            self.assertEqual([len(rs) for rs in rss], [12, 12, 13, 10, 7, 6, 5, 12])
+            self.assertEqual([len(rs) for rs in rss],
+                             [12, 12, 13, 10, 7, 6, 5, 12])
 
             sizes = []
             for x in overlap(rss, 5, 2):
