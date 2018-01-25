@@ -54,7 +54,7 @@ class TestConnection(unittest.TestCase):
             c.create("""select *, dconv(orderdate, '%Y-%m-%d', '%Y-%m') as ym
             from orders""")
             ls = []
-            for rs in c.fetch('orders', group='ym', overlap=(4, 2)):
+            for rs in c.fetch('orders', group='ym', overlap=(5, 2)):
                 ls.append([len(rs1) for rs1 in rs.group('ym')])
             self.assertEqual(ls, [
                 [22, 25, 23, 26, 25],
