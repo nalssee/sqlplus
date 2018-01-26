@@ -765,21 +765,18 @@ class SQLPlus:
                                 os.path.join(WORKSPACE, tempdb))
 
             with ProcessPoolExecutor(max_workers=n) as exe:
-                for _ in exe.map(fn, tempdbs, args):
-                    pass
+                exe.map(fn, tempdbs, args)
 
-            print(args, 'job done')
             with connect(tempdbs[0]) as c:
                 tables = [t for t in c.get_tables() if t != tname]
-            print(tables)
+
             for table in tables:
                 self._collect(table, tempdbs)
         finally:
-            # for tempdb in tempdbs:
-            #     fname = os.path.join(WORKSPACE, tempdb)
-            #     if os.path.isfile(fname):
-            #         os.remove(fname)
-            pass
+            for tempdb in tempdbs:
+                fname = os.path.join(WORKSPACE, tempdb)
+                if os.path.isfile(fname):
+                    os.remove(fname)
 
     def _collect(self, tname, dbnames):
         with connect(dbnames[0]) as c:

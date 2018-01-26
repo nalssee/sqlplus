@@ -13,13 +13,6 @@ from sqlplus import connect, Rows, Row, isnum, setdir
 setdir('data')
 
 
-def overlap(xs, size, step=1):
-    result = []
-    for i in range(0, len(xs), step):
-        result.append(Rows(chain(*xs[i: i + size])))
-    return result
-
-
 def price_sum(dbname, where):
     with connect(dbname) as c:
         def fn():
@@ -29,6 +22,13 @@ def price_sum(dbname, where):
                 r.psum = sum(rs['Price'])
                 yield r
         c.insert(fn(), 'psum')
+
+
+def overlap(xs, size, step=1):
+    result = []
+    for i in range(0, len(xs), step):
+        result.append(Rows(chain(*xs[i: i + size])))
+    return result
 
 
 class TestRow(unittest.TestCase):
@@ -250,13 +250,6 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(len(c.rows('orders1')), 196)
         os.remove('data/orders1.csv')
 
-    def test_pwork(self):
-        with connect(":memory:") as c:
-            c.load('products.csv')
-            c.pwork(price_sum, 'products',
-                    ['CategoryID < 5', 'CategoryID >= 5'])
-            self.assertEqual(len(c.rows('psum')), 8)
-
     def test_join(self):
         with connect(':memory:') as c:
             c.load('customers.csv')
@@ -266,6 +259,14 @@ class TestConnection(unittest.TestCase):
                 ['orders', 'orderid', 'customerid']
             )
             self.assertEqual(len(c.rows('customers')), 213)
+
+    def test_pwork(self):
+        with connect(":memory:") as c:
+            c.load('products.csv')
+            c.pwork(price_sum, 'products',
+                    ['CategoryID < 5', 'CategoryID >= 5'])
+            self.assertEqual(len(c.rows('psum')), 8)
+
 
 
 class TestMisc(unittest.TestCase):
