@@ -1,7 +1,13 @@
 import os
+import sys
 import unittest
-from sqlplus import connect, Rows, Row, isnum, setdir
 from itertools import chain
+
+TESTPATH = os.path.dirname(os.path.realpath(__file__))
+PYPATH = os.path.join(TESTPATH, '..', '..')
+sys.path.append(PYPATH)
+
+from sqlplus import connect, Rows, Row, isnum, setdir
 
 
 setdir('data')
@@ -267,6 +273,13 @@ class TestMisc(unittest.TestCase):
         self.assertEqual(isnum(3), True)
         self.assertEqual(isnum(-3.32), True)
         self.assertEqual(isnum("abc"), False)
+
+    def test_dmath_and_dconv(self):
+        with connect(':memory:') as c:
+            c.load('orders.csv')
+            c.create("""
+            select *, dmath(orderdate, "2 month", "%Y-%m-%d") as date
+            from orders""", 'orders1')
 
 
 if __name__ == "__main__":
