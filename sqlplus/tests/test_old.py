@@ -11,9 +11,6 @@ sys.path.append(PYPATH)
 from sqlplus import Row, Rows, connect, dmath, isnum, dconv, grouper, setdir
 
 
-def addm(date, n):
-    return dmath(date, {'months': n}, '%Y%m')
-
 setdir('data')
 
 
@@ -276,14 +273,6 @@ class TestRows(unittest.TestCase):
 
 # This should be defined in 'main' if you want to exploit multiple cores
 # in Windows, The function itself here is just a giberrish for testing
-def avg_id(rs):
-    r = Row(date=dconv(rs[0].orderdate, '%Y-%m-%d', '%Y%m'))
-    r.orderid = round(rs.avg('orderid'))
-    r.customerid = round(rs.avg('orderid'))
-    r.employeeid = round(rs.avg('employeeid'))
-    r.shipperid = rs[0].shipperid
-    return r
-
 
 class TestSQLPlus(unittest.TestCase):
     # apply is removed but the following works
@@ -358,137 +347,6 @@ class TestSQLPlus(unittest.TestCase):
             c.insert(foo(), 'foo')
             self.assertEqual(c.rows('foo')[:6]['x'], [0, 1, 2, 0, 1, 2])
 
-    def test_register(self):
-        def product(xs):
-            result = 1
-            for x in xs:
-                result *= x
-            return result
-
-        with connect(':memory:') as c:
-            def foo(x, y):
-                return x + y
-
-            def bar(*args):
-                return sum(args)
-
-            #
-            def foo1(a, b):
-                sum = 0
-                for a1, b1 in zip(a, b):
-                    sum += a1 * b1
-                return sum
-
-            def bar1(*args):
-                sum = 0
-                for xs in zip(*args):
-                    sum += product(xs)
-                return sum
-
-            c.register(foo)
-            c.register(bar)
-            # Look up the def of 'foo1' and you'll see r.a and r.b
-            # Actual table doesn't have to have column a and b
-            c.register_agg(foo1)
-            c.register_agg(bar1)
-
-            c.sql("create table test(i, j, x)")
-            c.sql("insert into test values (1, 3,'a')")
-            c.sql("insert into test values (21, 2, 'b')")
-            c.sql("insert into test values (5,3, 'a')")
-            c.sql("insert into test values (20,4, 'a')")
-            c.sql("insert into test values (20,'x', 'c')")
-            c.sql("insert into test values (20,-1.2, 'd')")
-
-            c.create("select foo(i, j) as val1, bar(i, j) as val2 from test",
-                     'test1')
-            self.assertEqual(c.rows('test1')['val1'], [4, 23, 8, 24, '', 18.8])
-            self.assertEqual(c.rows('test1')['val2'], [4, 23, 8, 24, '', 18.8])
-
-            c.create("""
-            select foo1(i, j) as val1, bar1(i, j) as val2 from test group by x
-            """, 'test2')
-            self.assertEqual(c.rows('test2')['val1'], [98, 42, '', -24.0])
-            self.assertEqual(c.rows('test2')['val2'], [98, 42, '', -24.0])
-
-    def test_join(self):
-        with connect('sample.db') as q:
-
-            q.join(
-                ['customers', 'customername', 'customerid'],
-                # if the matching columns (the third item in the following list
-                # is missing, then it is assumed to be the same as
-                # the matching column of the first table
-                ['orders', 'orderid'],
-                name='customers1'
-            )
-            rs = q.rows('customers1')
-            self.assertEqual(len(rs), 213)
-            self.assertEqual(len(rs.isnum('orderid')), 196)
-            q.drop('customers1')
-
-            def to_month(r):
-                r.date = dconv(r.orderdate, '%Y-%m-%d', '%Y%m')
-                return r
-            tseq = (to_month(r) for r in q.fetch('orders'))
-            q.insert(tseq, 'orders1', True)
-            # There's no benefits in using multiple cores
-            # You should know what you are doing.
-
-            tseq = pmap(avg_id, q.fetch('orders1', group='date'),
-                        max_workers=2)
-            q.insert(tseq, 'orders2', True)
-
-            # testing reel
-            ls = []
-            for rs in q.fetch('orders2', roll=(5, 2, 'date', True)):
-                ls.append(len(rs))
-            self.assertEqual(ls, [5, 5, 4, 2])
-
-            self.assertEqual(len(q.rows('orders1')), 196)
-
-            tseq = (rs[0] for rs in q.fetch('orders1',
-                                            group='date, customerid'))
-            q.insert(tseq, 'orders2', True, pkeys='date, customerid')
-            self.assertEqual(len(q.rows('orders2')), 161)
-
-            q.register(addm)
-            q.create('select *, addm(date, 1) as d1 from orders1', 'orders1_1')
-            q.create('select *, addm(date, 2) as d2 from orders1', 'orders1_2')
-            q.create('select *, addm(date, 3) as d3 from orders1', 'orders1_3')
-            q.join(
-                ['orders1', 'date, customerid, orderid', 'date, customerid'],
-                ['orders1_1', 'orderid as orderid1', 'd1, customerid'],
-                ['orders1_2', 'orderid as orderid2', 'd2, customerid'],
-                ['orders1_3', 'orderid as orderid3', 'd3, customerid'],
-                name='orders3'
-            )
-            q.drop('orders1_1, orders1_2, orders1_3')
-
-            q.create("""
-            select a.date, a.customerid, a.orderid,
-            b.orderid as orderid1,
-            c.orderid as orderid2,
-            d.orderid as orderid3
-
-            from orders1 as a
-
-            left join orders1 as b
-            on a.date = addm(b.date, 1) and a.customerid = b.customerid
-
-            left join orders1 as c
-            on a.date = addm(c.date, 2) and a.customerid = c.customerid
-
-            left join orders1 as d
-            on a.date = addm(d.date, 3) and a.customerid = d.customerid
-            """, name='orders4')
-
-            rs3 = q.rows('orders3')
-            rs4 = q.rows('orders4')
-
-            for r3, r4 in zip(rs3, rs4):
-                self.assertEqual(r3.values, r4.values)
-
 
 # for pmap, this fn must be in top level, in Windwos machine.
 def fn(r, a):
@@ -497,19 +355,6 @@ def fn(r, a):
 
 
 class TestMisc(unittest.TestCase):
-    def test_load_excel(self):
-        with connect('sample.db') as c:
-            c.load('orders.xlsx', 'orders_temp')
-            # You may see some surprises because
-            # read_excel uses pandas way of reading excel files
-            # q.rows('orders1').show()
-            self.assertEqual(len(c.rows('orders_temp')), 196)
-
-    def test_sas(self):
-        with connect('sample.db') as c:
-            c.load('ff5_ew_mine.sas7bdat')
-            self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
-
     def test_pmap(self):
         with connect(':memory:') as c:
             rs = [Row(a=i) for i in range(10)]
