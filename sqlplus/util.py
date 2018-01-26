@@ -47,6 +47,15 @@ def dmath(date, size, fmt):
     return int(d2) if isinstance(date, int) else d2
 
 
+def isconsec(xs, size, fmt):
+    """Tests if xs is consecutive calendrically, increasing order.
+    """
+    for x1, x2 in zip(xs, xs[1:]):
+        if dmath(x1, size, fmt) != x2:
+            return False
+    return True
+
+
 # If the return value is True it is converted to 1 or 0 in sqlite3
 # istext is unncessary for validity check
 def isnum(*xs):

@@ -2,12 +2,10 @@
 Utils for statistical analysis using sqlite3 engine
 """
 import os
-import re
 import sqlite3
 import copy
 import warnings
 import inspect
-import operator
 import numpy as np
 import csv
 import statistics as st
@@ -15,7 +13,6 @@ import pandas as pd
 import shutil
 from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
-from collections import Iterable
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
@@ -156,7 +153,7 @@ class Rows:
         Args:
             rows(sequence of Row instances)
         """
-        self.rows = list(rows)
+        self.rows = list(rows) if rows else []
 
     def __len__(self):
         return len(self.rows)
@@ -165,64 +162,56 @@ class Rows:
     def __getitem__(self, k):
         """
         Args:
-            k: int, slice, comma separated string or a list of strings
+            k: int, slice, or column name
         """
         if isinstance(k, int):
             return self.rows[k]
         if isinstance(k, slice):
             # shallow copy for non-destructive slicing
             return self._newrows(self.rows[k])
-        # Now k is a column name(s)
+
         k = _listify(k)
         if len(k) == 1:
-            k = k[0]
-            return [r[k] for r in self.rows]
-        else:
-            # exceptionally allow multiple columns for __getitem__
-            return [[r[k1] for k1 in k] for r in self.rows]
+            k0 = k[0]
+            return [r[k0] for r in self.rows]
+        return [[r[k0] for k0 in k] for r in self.rows]
 
-    def __setitem__(self, k, v):
-        """
-        """
-        if isinstance(k, int) or isinstance(k, slice):
-            self.rows[k] = v
-            return
-
-        # same value is assigned to them all
-        if not isinstance(v, list):
-            for r in self.rows:
-                r[k] = v
-        else:
-            assert len(self) == len(v), "Invalid assignment"
-            for r, v1 in zip(self.rows, v):
-                r[k] = v1
+    # Do not define __setitem__, it will get users confused
 
     def __delitem__(self, k):
-        """
-        """
         if isinstance(k, int) or isinstance(k, slice):
             del self.rows[k]
             return
 
-        for r in self.rows:
-            del r[k]
+        k = _listify(k)
+        if len(k) == 1:
+            k0 = k[0]
+            for r in self.rows:
+                del r[k0]
+        else:
+            for r in self.rows:
+                for k0 in k:
+                    del r[k0]
 
     def __add__(self, other):
         return self._newrows(self.rows + other.rows)
 
-    def isconsec(self, col, step, fmt):
-        """Tests if self.rows is consecutive calendrically
+    def _newrows(self, rs):
+        # copying rows and build Rows object
+        # Am I worring too much?, this is for inheritance
+        self.rows, temp = [], self.rows
+        other = copy.copy(self)
+        other.rows, self.rows = list(rs), temp
+        return other
 
-        Args:
-            |  col(str): date column name.
-            |  step(str): "1 month" for example
-            |  fmt(str): format for the date column, ex) "%Y%m%d"
+    # Limited version of __setitem__
+    def assign(self, k, v):
+        for r in self.rows:
+            r[k] = v
 
-        """
-        for x1, x2 in zip(self, self[1:]):
-            if dmath(x1[col], step, fmt) != x2[col]:
-                return False
-        return True
+    def append(self, r):
+        self.rows.append(r)
+        return self
 
     # destructive!!!
     def order(self, key, reverse=False):
@@ -236,19 +225,6 @@ class Rows:
         # You can pass fn as key arg but not recommended
         self.rows.sort(key=_build_keyfn(key), reverse=reverse)
         return self
-
-    def copy(self):
-        "Shallow copy"
-        # I'm considering the inheritance
-        return copy.copy(self)
-
-    def _newrows(self, rs):
-        # copying rows and build Rows object
-        # Am I worring too much?, this is for inheritance
-        self.rows, temp = [], self.rows
-        other = self.copy()
-        other.rows, self.rows = list(rs), temp
-        return other
 
     def where(self, pred):
         """Filters rows
@@ -264,7 +240,7 @@ class Rows:
         cols = _listify(','.join(cols))
         return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
 
-    def avg(self, col, wcol=None, n=None):
+    def avg(self, col, wcol=None, ndigits=None):
         """Computes average
 
         Args:
@@ -280,7 +256,7 @@ class Rows:
             val = sum(r[col] * r[wcol] for r in rs) / total
         else:
             val = st.mean(r[col] for r in self if isnum(r[col]))
-        return round(val, n) if n else val
+        return round(val, ndigits) if ndigits else val
 
     def ols(self, model):
         """OLS fit
@@ -360,49 +336,46 @@ class Rows:
             result.append(self[i:i + size])
         return result
 
-    # TODO: generator -> ordinary function
-    def chunks(self, n, col=None, le=True):
+    def chunk(self, n, col=None):
         """Yields Rows, useful for building portfolios
 
         Usage:
-            |  self.chunks(3) => yields 3 rows about the same size
-            |  self.chunks([0.3, 0.4, 0.3]) => yields 3 rows of 30%, 40%, 30%
-            |  self.chunks([100, 500, 1000], 'col', False)
-            |      => yields 3 rows with break points [100, 500, 100]
-            |      Since le(less than or equal to) is False
-            |      the first group does not include 100
+            |  self.chunk(3) => yields 3 rows about the same size
+            |  self.chunk([0.3, 0.4, 0.3]) => yields 3 rows of 30%, 40%, 30%
+            |  self.chunk([100, 500, 1000], 'col')
+            |      => yields 4 rows with break points 100, 500, 1000
         """
         size = len(self)
         if isinstance(n, int):
             start = 0
+            result = []
             for i in range(1, n + 1):
                 end = int((size * i) / n)
                 # must yield anyway
-                yield self[start:end]
+                result.append(self[start:end])
                 start = end
+            return result
         # n is a list of percentiles
         elif not col:
             # then it is a list of percentiles for each chunk
             assert sum(n) <= 1, f"Sum of percentils for chunks must be <= 1.0"
             ns = [int(x * size) for x in accumulate(n)]
-            yield from (self[a:b] for a, b in zip([0] + ns, ns))
+            result = []
+            for a, b in zip([0] + ns, ns):
+                result.append(self[a:b])
+            return result
         # n is a list of break points
         else:
             self.order(col)
-            size = len(self)
-            op = operator.le if le else operator.lt
             start, end = 0, 0
+            result = []
             for bp in n:
-                while op(self[end][col], bp) and end < size:
+                while (self[end][col] < bp) and end < size:
                     end += 1
-                yield self[start:end]
+                result.append(self[start:end])
                 start = end
-            yield self[end:]
-
-    def bps(self, percentiles, col):
-        "Returns a list of breakpoints of percentages for col"
-        bs = pd.Series(self[col]).describe(percentiles)
-        return [bs[str(round(p * 100)) + '%'] for p in percentiles]
+            result.append(self[end:])
+            return result
 
     # Use this when you need to see what's inside
     # for example, when you want to see the distribution of data.
@@ -416,57 +389,6 @@ class Rows:
         else:
             cols = self.rows[0].columns
             return pd.DataFrame([r.values for r in self], columns=cols)
-
-    def numbering(self, d, dep=False, prefix='pn_'):
-        """Returns self with additional columns with portfolio numbering
-
-        Args:
-            |  d(dict): ex) {'col1': 3, 'col2': [0.3, 0.4, 0.3], 'col3': fn}
-            |  dep(bool): False(default) => independent sort
-            |  prefix(str): prefix for the additional columns
-        """
-        # lexical closure in for loop!!
-        d1 = {c: x if callable(x) else (lambda x: lambda rs: rs.chunks(x))(x)
-              for c, x in d.items()}
-
-        def rec(rs, cs):
-            if len(cs) != 0:
-                c = cs[0]
-                for i, rs1 in enumerate(d1[c](rs.isnum(c).order(c)), 1):
-                    rs1[prefix + c] = i
-                    rec(rs1, cs[1:])
-        if dep:
-            rec(self, list(d1))
-        else:
-            for c, fn in d1.items():
-                for i, rs1 in enumerate(fn(self.isnum(c).order(c)), 1):
-                    rs1[prefix + c] = i
-        # return value not so important
-        return self
-
-    # Copy column values from rs
-    def follow(self, rs, idcol, cols):
-        """rs copies the self for cols if they have the same idcol values
-
-        Args:
-            |  rs(Rows)
-            |  idcol(str): column for id
-            |  cols(str or list of str)
-
-        Returns self
-        """
-        cols = _listify(cols)
-        # initialize
-        for c in list(cols):
-            self[c] = ''
-        # Now they must have the same columns
-        rs1 = rs + self
-        # Python sort perserves orders
-        for rs2 in rs1.group(idcol):
-            for c in list(cols):
-                rs2[c] = rs2[0][c]
-        # side effects method, return value not so important
-        return self
 
 
 class SQLPlus:
@@ -496,13 +418,8 @@ class SQLPlus:
         # You can safely uncomment the following line
         self.conn.row_factory = sqlite3.Row
 
-        # row_factory is problematic don't use it
-        # you can avoid the problems but not worth it
-        # if you really need performance then just use "run"
+        # default cursor
         self._cursor = self.conn.cursor()
-        # cursor for insertion only
-        self._insert_cursor = self.conn.cursor()
-
         # some performance tuning
         self._cursor.execute(f'PRAGMA cache_size={cache_size}')
 
@@ -548,7 +465,7 @@ class SQLPlus:
                     next(s)
             xss = zip_longest(*ss, fillvalue=None)
             for xs in islice(xss, 0, None, step):
-                # lets go easy
+                # lets just go easy
                 yield [x for x in xs if x is not None]
 
         order = _listify(order) if order else []
@@ -556,7 +473,8 @@ class SQLPlus:
 
         order = group + order
 
-        qrows = self._cursor.execute(_build_query(tname, cols, where, order))
+        qry = _build_query(tname, cols, where, order)
+        qrows = self.conn.cursor().execute(qry)
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
         if len(columns) != len(set(columns)):
@@ -579,57 +497,28 @@ class SQLPlus:
         else:
             yield from (_build_row(r, columns) for r in qrows)
 
-    def insert(self, rs, name, overwrite=True, pkeys=None):
-        """Insert Row, Rows or sequence of Row(s)
+    def insert(self, rs, name, pkeys=None):
+        """Insert Rows or sequence of Row(s)
 
         Args:
-            |  rs(Row, Rows, or sequence of Row(s))
+            |  rs(Rows, or sequence of Row(s))
             |  name(str): table name
-            |  overwrite(bool): False(default)
             |  pkeys(str or list of str): primary keys
         """
-        if isinstance(rs, Row):
-            r0 = rs
-        elif isinstance(rs, Rows):
-            if len(rs) == 0:
-                return
-            else:
-                r0 = rs[0]
-        else:
-            try:
-                r0, rs = _peek_first(rs)
-                # r0 can be a list or a 'Rows'
-                if isinstance(r0, Rows) or isinstance(r0, Iterable):
-                    rs = (r for rs0 in rs for r in rs0)
-                    r0, rs = _peek_first(rs)
-            except StopIteration:
-                # empty sequence
-                return
+        rs = iter(rs)
+
+        try:
+            r0, rs = _peek_first(rs)
+        except StopIteration:
+            return
 
         cols = r0.columns
         n = len(cols)
 
-        name0 = name
-        name1 = 'temp_' + _random_string(20) if overwrite else name
-
-        try:
-            # create a table if not exists
-            # You can't use self.tables because it uses the main cursor
-            query = self._insert_cursor.execute("""
-            select * from sqlite_master where type='table'
-            """)
-            if name1.lower() not in (row[1] for row in query):
-                self._insert_cursor.execute(
-                    _create_statement(name1, cols, pkeys))
-
-            istmt = _insert_statement(name1, n)
-            if isinstance(rs, Row):
-                self._insert_cursor.execute(istmt, r0.values)
-            else:
-                self._insert_cursor.executemany(istmt, (r.values for r in rs))
-        finally:
-            if name0 != name1:
-                self.rename(name1, name0)
+        self.drop(name)
+        self._cursor.execute(_create_statement(name, cols, pkeys))
+        istmt = _insert_statement(name, n)
+        self._cursor.executemany(istmt, (r.values for r in rs))
 
     def load(self, filename, name=None, encoding='utf-8',
              fn=None, pkeys=None):
@@ -654,11 +543,11 @@ class SQLPlus:
             raise ValueError('Unknown file extension', ext)
 
         name = name or fname
-        if name in self.tables:
+        if name in self.get_tables():
             return
         if fn:
             seq = (fn(r) for r in seq)
-        self.insert(seq, name, True, pkeys)
+        self.insert(seq, name, pkeys)
 
     def to_csv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
@@ -730,17 +619,15 @@ class SQLPlus:
         self.conn.create_aggregate(fn.__name__, n,
                                    type(clsname, (_AggBuilder,), d))
 
-    @property
-    def tables(self):
+    def get_tables(self):
         """List of table names in database
         """
         query = self._cursor.execute("""
         select * from sqlite_master
         where type='table'
         """)
-        # **.lower()
-        tables = [row[1].lower() for row in query]
-        return sorted(tables)
+        tables = [row[1] for row in query]
+        return tables
 
     # args can be a list, a tuple or a dictionary
     # It is unlikely that we need to worry about the security issues
@@ -778,17 +665,9 @@ class SQLPlus:
     def rename(self, old, new):
         """Rename a table from old to new
         """
-        if old.lower() in self.tables:
+        if old in self.get_tables():
             self.sql(f'drop table if exists { new }')
             self.sql(f'alter table { old } rename to { new }')
-
-    def _cols(self, query):
-        return [c[0] for c in self.sql(query).description]
-
-    def _pkeys(self, tname):
-        "Primary keys in order"
-        pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
-        return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
     def create(self, query, name=None, pkeys=None):
         """Create new table from query(select statement)
@@ -800,7 +679,8 @@ class SQLPlus:
             |  pkeys(str or list of str): primary keys
         """
         temp_name = 'table_' + _random_string()
-        tname = _get_name_from_query(query)
+        idx = query.lower().split().index('from')
+        tname = query.split()[idx + 1]
         # keep pkeys from the original table if not exists
         pkeys = _listify(pkeys) if pkeys else self._pkeys(tname)
         name = name or tname
@@ -826,7 +706,7 @@ class SQLPlus:
             # extract new column names
             # if there's any renaming
             result = []
-            for c in _listify(cols.lower()):
+            for c in _listify(cols):
                 a, *b = [x.strip() for x in c.split('as')]
                 result.append(b[0] if b else a)
             return result
@@ -867,26 +747,11 @@ class SQLPlus:
             for c0, c1 in zip(mcols0, mcols1):
                 if c1:
                     eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
-            join_clauses.append(f"""
-            left join {tname1}
-            on {' and '.join(eqs)}
-            """)
+            join_clauses.append(f" left join {tname1} on {' and '.join(eqs)} ")
         jcs = ' '.join(join_clauses)
         allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
         query = f"select {allcols} from {tname0} {jcs}"
         self.create(query, name, pkeys)
-
-    def _collect(self, tname, dbnames):
-        with connect(dbnames[0]) as c:
-            cols = c._cols(f"select * from {tname}")
-            pkeys = c._pkeys(tname)
-
-        self.drop(tname)
-        self.sql(_create_statement(tname, cols, pkeys))
-
-        for dbname in dbnames:
-            with connect(dbname) as c:
-                self.insert(c.fetch(tname), tname, overwrite=False)
 
     def pwork(self, fn, tname, args):
         n = len(args)
@@ -903,7 +768,7 @@ class SQLPlus:
                 exe.map(fn, tempdbs, args)
 
             with connect(tempdbs[0]) as c:
-                tables = [t for t in c.tables if t != tname]
+                tables = [t for t in c.get_tables() if t != tname]
 
             for table in tables:
                 self._collect(table, tempdbs)
@@ -912,6 +777,27 @@ class SQLPlus:
                 fname = os.path.join(WORKSPACE, tempdb)
                 if os.path.isfile(fname):
                     os.remove(fname)
+
+    def _collect(self, tname, dbnames):
+        with connect(dbnames[0]) as c:
+            cols = c._cols(f"select * from {tname}")
+            pkeys = c._pkeys(tname)
+
+        self.drop(tname)
+        self.sql(_create_statement(tname, cols, pkeys))
+        ismt = _insert_statement(tname, len(cols))
+        for dbname in dbnames:
+            with connect(dbname) as c:
+                self._cursor.executemany(ismt,
+                                         (r.values for r in c.fetch(tname)))
+
+    def _cols(self, query):
+        return [c[0] for c in self.sql(query).description]
+
+    def _pkeys(self, tname):
+        "Primary keys in order"
+        pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
+        return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
 
 def _build_keyfn(key):
@@ -937,20 +823,15 @@ def _create_statement(name, colnames, pkeys):
     pkeys = [f"primary key ({', '.join(_listify(pkeys))})"] if pkeys else []
     # every col is numeric, this may not be so elegant but simple to handle.
     # If you want to change this, Think again
-    schema = ', '.join([col.lower() + ' ' + 'numeric' for col in colnames] +
-                       pkeys)
-    return "create table if not exists %s (%s)" % (name.lower(), schema)
+    schema = ', '.join([col + ' ' + 'numeric' for col in colnames] + pkeys)
+    return "create table if not exists %s (%s)" % (name, schema)
 
 
 def _insert_statement(name, ncol):
     """insert into foo values (?, ?, ?, ...)
-    Note:
-        Column name is lower cased
-
-    ncol : number of columns
     """
     qmarks = ', '.join(['?'] * ncol)
-    return "insert into %s values (%s)" % (name.lower(), qmarks)
+    return "insert into %s values (%s)" % (name, qmarks)
 
 
 def _build_query(tname, cols=None, where=None, order=None):
@@ -971,20 +852,6 @@ def _build_row(qr, cols):
     for c, v in zip(cols, qr):
         r[c] = v
     return r
-
-
-def _get_name_from_query(query):
-    """'select * from foo where ...' => foo
-    """
-    pat = re.compile(r'\s+from\s+(\w+)\s*')
-    try:
-        return pat.search(query.lower()).group(1)
-    except AttributeError:
-        return None
-
-
-def _getone(xs, default):
-    return xs[0] if xs else default
 
 
 def _read_csv(filename, encoding='utf-8'):
@@ -1021,7 +888,7 @@ def _read_sas(filename):
     with SAS7BDAT(filename) as f:
         reader = f.readlines()
         # lower case
-        header = [x.lower() for x in next(reader)]
+        header = next(reader)
         for line in reader:
             r = Row()
             for k, v in zip(header, line):

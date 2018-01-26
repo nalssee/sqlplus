@@ -3,6 +3,7 @@ import unittest
 from sqlplus import connect, Rows, Row, isnum, setdir
 from itertools import chain
 
+
 setdir('data')
 
 
@@ -16,12 +17,167 @@ def overlap(xs, size, step=1):
 def price_sum(dbname, where):
     with connect(dbname) as c:
         def fn():
-            for rs in c.fetch('products', group='categoryid', where=where):
+            for rs in c.fetch('products', group='CategoryID', where=where):
                 r = Row()
-                r.categoryid = rs[0].categoryid
-                r.psum = sum(rs['price'])
+                r.CategoryID = rs[0].CategoryID
+                r.psum = sum(rs['Price'])
                 yield r
         c.insert(fn(), 'psum')
+
+
+class TestRow(unittest.TestCase):
+    def test_init(self):
+        r = Row()
+        self.assertEqual(r.columns, [])
+        self.assertEqual(r.values, [])
+
+        r = Row(a=10, b=20)
+        self.assertEqual(r.columns, ['a', 'b'])
+        self.assertEqual(r.values, [10, 20])
+
+        r = Row(b=10, a=20)
+        self.assertEqual(r.columns, ['b', 'a'])
+
+    def test_getattr(self):
+        r1 = Row(a=10, b='test')
+        self.assertEqual(r1.a, 10)
+        self.assertEqual(r1['b'], 'test')
+
+    def test_setattr(self):
+        r1 = Row(a=10, b='test')
+        r1.a = 20
+        self.assertEqual(r1.a, 20)
+        r1['b'] = 'test1'
+        self.assertEqual(r1.b, 'test1')
+        r1.c = [1, 2, 3]
+        self.assertEqual(r1.c, [1, 2, 3])
+
+    def test_delattr(self):
+        r1 = Row(a=10, b='test')
+        del r1.a
+        self.assertEqual(r1.columns, ['b'])
+
+        with self.assertRaises(Exception):
+            del r1.a
+
+        del r1['b']
+        self.assertEqual(r1.columns, [])
+
+
+class TestRows(unittest.TestCase):
+    def test_isnum(self):
+        with connect(':memory:') as q:
+            q.load('customers.csv')
+            rs1 = q.rows('customers', where='isnum(PostalCode)')
+            rs2 = q.rows('customers').isnum('PostalCode')
+            self.assertEqual(len(rs1), len(rs2))
+
+            rs1 = q.rows('customers', where='isnum(PostalCode, CustomerID)')
+            rs2 = q.rows('customers', where='isnum(PostalCode)')
+            rs3 = q.rows('customers', where='isnum(PostalCode, City)')
+            self.assertEqual(len(rs1), 66)
+            self.assertEqual(len(rs2), 66)
+            self.assertEqual(len(rs3), 0)
+
+    def test_avg(self):
+        with connect(':memory:') as q:
+            q.load('products.csv')
+            rs1 = q.rows('products')
+            self.assertEqual(round(rs1.avg('Price') * 100), 2887)
+            self.assertEqual(round(rs1.avg('Price', 'CategoryID') * 100), 2811)
+
+    def test_ols(self):
+        with connect(':memory:') as q:
+            q.load('products.csv')
+            rs = q.rows('products')
+            res = rs.ols('Price ~ SupplierID + CategoryID')
+            self.assertEqual(len(res.params), 3)
+            self.assertEqual(len(res.resid), len(rs))
+
+    def test_truncate(self):
+        with connect(':memory:') as q:
+            q.load('products.csv')
+            rs = q.rows('products')
+            self.assertEqual(len(rs.truncate('Price', 0.1)), 61)
+
+    def test_winsorize(self):
+        with connect(':memory:') as q:
+            q.load('products.csv')
+            rs = q.rows('products')
+            self.assertEqual(round(rs.avg('Price') * 100), 2887)
+            rs = rs.winsorize('Price', 0.2)
+            self.assertEqual(round(rs.avg('Price') * 100), 2296)
+
+    def test_group(self):
+        with connect(':memory:') as q:
+            q.load('customers.csv')
+            rs = q.rows('customers')
+            ls = [len(rs1) for rs1 in rs.group('Country')]
+            self.assertEqual(ls, [3, 2, 2, 9, 3, 2, 2, 11, 11,
+                                  1, 3, 5, 1, 1, 2, 5, 2, 2, 7, 13, 4])
+
+    def test_chunks(self):
+        rs = Rows(Row(x=i) for i in range(10))
+        for rs1 in rs.chunk(2):
+            self.assertEqual(len(rs1), 5)
+        # even when there are not enough elements
+        ls = rs.chunk(15)
+        self.assertEqual(len(ls), 15)
+
+        with connect(':memory:') as q:
+            q.load('orderdetails.csv')
+            rs = q.rows('orderdetails')
+            a, b, c = rs.chunk([0.3, 0.4, 0.3])
+            n = len(rs)
+            self.assertEqual(len(a), int(n * 0.3))
+            self.assertEqual(len(b), int(n * 0.4))
+            # roughly the same
+            self.assertEqual(len(c), int(n * 0.3) + 1)
+
+        rs = Rows(Row(a=i) for i in [1, 7, 3, 7])
+        xs = [x['a'] for x in rs.chunk([2, 5], 'a')]
+        self.assertEqual(xs, [[1], [3], [7, 7]])
+
+        xs = [x['a'] for x in rs.chunk([2, 2.5], 'a')]
+        self.assertEqual(xs, [[1], [], [3, 7, 7]])
+
+        xs = [x['a'] for x in rs.chunk([1, 3, 5], 'a')]
+        self.assertEqual(xs, [[], [1], [3], [7, 7]])
+
+    def test_df(self):
+        with connect(':memory:') as q:
+            q.load('customers.csv')
+            rs = q.rows('customers')
+            self.assertEqual(rs.df().shape, (91, 7))
+
+    def test_order(self):
+        with connect(':memory:') as q:
+            q.load('customers.csv')
+            seq = (rs[0] for rs in q.fetch('customers', group='Country'))
+            q.insert(seq, 'c1')
+            countries = q.rows('c1').order('Country', reverse=True)['Country']
+            self.assertEqual(len(countries), 21)
+            self.assertEqual(countries[:3], ['Venezuela', 'USA', 'UK'])
+
+    def test_where(self):
+        with connect(':memory:') as q:
+            q.load('customers.csv')
+            rs = q.rows('customers')
+            self.assertEqual(len(rs.where(lambda r: r.Country == "USA"
+                             and r.PostalCode < 90000)), 4)
+            self.assertEqual(len(rs.where(lambda r: isnum(r.PostalCode))), 66)
+
+    def test_rows_group_and_overlap(self):
+        with connect(':memory:') as c:
+            c.load('products.csv')
+            rss = c.rows('products').group('CategoryID')
+            self.assertEqual([len(rs) for rs in rss],
+                             [12, 12, 13, 10, 7, 6, 5, 12])
+
+            sizes = []
+            for x in overlap(rss, 5, 2):
+                sizes.append(len(x))
+            self.assertEqual(sizes, [54, 41, 30, 17])
 
 
 class TestConnection(unittest.TestCase):
@@ -30,15 +186,15 @@ class TestConnection(unittest.TestCase):
             c.load('products.csv')
 
             def products_avg():
-                for rs in c.fetch('products', group="categoryid"):
+                for rs in c.fetch('products', group="CategoryID"):
                     r = Row()
-                    r.categoryid = rs[0].categoryid
-                    r.agg_price = sum(r.price for r in rs)
+                    r.CategoryID = rs[0].CategoryID
+                    r.agg_price = sum(r.Price for r in rs)
                     r.n = len(rs)
                     yield r
-            c.insert(products_avg(), 'products_avg', pkeys='categoryid')
+            c.insert(products_avg(), 'products_avg', pkeys='CategoryID')
 
-            self.assertEqual(c._pkeys('products_avg'), ['categoryid'])
+            self.assertEqual(c._pkeys('products_avg'), ['CategoryID'])
             self.assertEqual(c.rows('products_avg')['agg_price'],
                              [455.75, 276.75, 327.08, 287.3,
                               141.75, 324.04, 161.85, 248.19])
@@ -73,9 +229,9 @@ class TestConnection(unittest.TestCase):
         with connect(':memory:') as c:
             c.load('products.csv')
             x = []
-            for rs in c.fetch('products', group='categoryid', overlap=3):
-                x.append(rs[0].productname)
-                rs['productname'] = 0
+            for rs in c.fetch('products', group='CategoryID', overlap=3):
+                x.append(rs[0].ProductName)
+                rs.assign('ProductName', 0)
             # !!!!! overlap shares rows in between iterations
             self.assertEqual(x, ['Chais', 0, 0, 0, 0, 0, 0, 0])
 
@@ -92,7 +248,7 @@ class TestConnection(unittest.TestCase):
         with connect(":memory:") as c:
             c.load('products.csv')
             c.pwork(price_sum, 'products',
-                    ['categoryid < 5', 'categoryid >= 5'])
+                    ['CategoryID < 5', 'CategoryID >= 5'])
             self.assertEqual(len(c.rows('psum')), 8)
 
     def test_join(self):
@@ -104,20 +260,6 @@ class TestConnection(unittest.TestCase):
                 ['orders', 'orderid', 'customerid']
             )
             self.assertEqual(len(c.rows('customers')), 213)
-
-
-class TestRows(unittest.TestCase):
-    def test_rows_group_and_overlap(self):
-        with connect(':memory:') as c:
-            c.load('products.csv')
-            rss = c.rows('products').group('categoryid')
-            self.assertEqual([len(rs) for rs in rss],
-                             [12, 12, 13, 10, 7, 6, 5, 12])
-
-            sizes = []
-            for x in overlap(rss, 5, 2):
-                sizes.append(len(x))
-            self.assertEqual(sizes, [54, 41, 30, 17])
 
 
 class TestMisc(unittest.TestCase):
