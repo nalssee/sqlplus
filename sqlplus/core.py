@@ -293,9 +293,7 @@ class Rows:
         xs = self[col]
         lower = np.percentile(xs, limit * 100)
         higher = np.percentile(xs, (1 - limit) * 100)
-        self.rows = self.where(lambda r: r[col] >= lower and r[col] <= higher)\
-                        .rows
-        return self
+        return self.where(lambda r: r[col] >= lower and r[col] <= higher)
 
     def winsorize(self, col, limit=0.01):
         """Winsorsize rows that are out of limits
