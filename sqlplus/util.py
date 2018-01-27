@@ -4,7 +4,7 @@ Functions that are not specific to "Row" objects
 
 import random
 import string
-from itertools import zip_longest, chain
+from itertools import chain
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -66,18 +66,6 @@ def isnum(*xs):
         return True
     except (ValueError, TypeError):
         return False
-
-
-# copied from 'itertools'
-def grouper(iterable, n, fillvalue=None):
-    """Collect data into fixed-length chunks or blocks, generator
-
-    Examples:
-        >>> grouper('ABCDEFG', 3, 'x')
-        ABC DEF Gxx"
-    """
-    args = [iter(iterable)] * n
-    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def _random_string(nchars=20):
