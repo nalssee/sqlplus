@@ -6,8 +6,7 @@ import os
 import locale
 import csv
 
-from itertools import groupby
-from sqlplus import grouper
+from itertools import groupby, zip_longest
 from sqlplus import util
 
 
@@ -25,6 +24,13 @@ if os.name == 'nt':
     locale.setlocale(locale.LC_ALL, 'english_USA')
 elif os.name == 'posix':
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def convert_string(x):

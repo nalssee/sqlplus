@@ -1,7 +1,6 @@
 """
 Functions that are not specific to "Row" objects
 """
-
 import random
 import string
 from itertools import chain

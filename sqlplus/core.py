@@ -753,7 +753,8 @@ class SQLPlus:
 
     def pwork(self, fn, tname, args):
         n = len(args)
-        tempdbs = ['temp' + _random_string() + str(i) for i in range(n)]
+        rndstr = _random_string()
+        tempdbs = ['temp' + rndstr + str(i) for i in range(n)]
         pkeys = self._pkeys(tname)
         try:
             with connect(tempdbs[0]) as c:
@@ -875,10 +876,7 @@ def _read_csv(filename, encoding='utf-8'):
                 raise ValueError(
                     """%s at line %s column count not matched %s != %s: %s
                     """ % (filename, line_no, ncol, len(line), line))
-            row1 = Row()
-            for col, val in zip(columns, line):
-                row1[col] = val
-            yield row1
+            yield _build_row(line, columns)
 
 
 def _read_sas(filename):
@@ -888,10 +886,7 @@ def _read_sas(filename):
         # lower case
         header = next(reader)
         for line in reader:
-            r = Row()
-            for k, v in zip(header, line):
-                r[k] = v
-            yield r
+            yield _build_row(line, header)
 
 
 # this could be more complex but should it be?
@@ -899,10 +894,7 @@ def _read_excel(filename):
     def read_df(df):
         cols = df.columns
         for i, r in df.iterrows():
-            r0 = Row()
-            for c, v in zip(cols, (r[c] for c in cols)):
-                r0[c] = str(v)
-            yield r0
+            yield _build_row((str(r[c]) for c in cols), cols)
 
     filename = os.path.join(WORKSPACE, filename)
     # it's OK. Excel files are small
