@@ -503,6 +503,7 @@ class SQLPlus:
             |  name(str): table name
             |  pkeys(str or list of str): primary keys
         """
+        self.drop(name)
         rs = iter(rs)
 
         try:
@@ -513,7 +514,6 @@ class SQLPlus:
         cols = r0.columns
         n = len(cols)
 
-        self.drop(name)
         self._cursor.execute(_create_statement(name, cols, pkeys))
         istmt = _insert_statement(name, n)
         self._cursor.executemany(istmt, (r.values for r in rs))
