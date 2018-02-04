@@ -205,7 +205,7 @@ class Rows:
         return other
 
     # Limited version of __setitem__
-    def assign(self, k, v):
+    def set(self, k, v):
         for r in self.rows:
             r[k] = v
 

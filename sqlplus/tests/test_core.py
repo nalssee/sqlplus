@@ -237,7 +237,7 @@ class TestConnection(unittest.TestCase):
             x = []
             for rs in c.fetch('products', group='CategoryID', overlap=3):
                 x.append(rs[0].ProductName)
-                rs.assign('ProductName', 0)
+                rs.set('ProductName', 0)
             # !!!!! overlap shares rows in between iterations
             self.assertEqual(x, ['Chais', 0, 0, 0, 0, 0, 0, 0])
 
