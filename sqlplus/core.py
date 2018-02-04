@@ -518,6 +518,19 @@ class SQLPlus:
         istmt = _insert_statement(name, n)
         self._cursor.executemany(istmt, (r.values for r in rs))
 
+    def ins(self, rs, name, pkeys=None):
+        def _prep(r0):
+            if name not in self.get_tables():
+                self._cursor.execute(_create_statement(name, r0.columns,
+                                     pkeys))
+            return _insert_statement(name, len(r0.columns))
+
+        if isinstance(rs, Row):
+            self._cursor.execute(_prep(rs), rs.values)
+        # list or Rows
+        else:
+            self._cursor.executemany(_prep(rs[0]), (r.values for r in rs))
+
     def load(self, filename, name=None, encoding='utf-8',
              fn=None, pkeys=None):
         """Read data file and save it on database

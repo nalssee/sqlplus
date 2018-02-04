@@ -267,6 +267,22 @@ class TestConnection(unittest.TestCase):
                     ['CategoryID < 5', 'CategoryID >= 5'])
             self.assertEqual(len(c.rows('psum')), 8)
 
+    def test_ins(self):
+        with connect(':memory:') as c:
+            c.load('products.csv')
+            c.drop('products1')
+            for r in c.fetch('products'):
+                r.foo = r.Price * 100
+                c.ins(r, 'products1')
+            self.assertEqual(c.rows('products1')['foo'][0], 1800)
+
+            c.drop('products1')
+            for rs in c.fetch('products', group='categoryid'):
+                c.ins(rs, 'products1')
+            self.assertEqual(
+                c.rows('products').order('CategoryID')['ProductName, Unit'],
+                c.rows('products1')['ProductName, Unit'])
+
     def test_register(self):
         def product(xs):
             result = 1
