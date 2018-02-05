@@ -328,11 +328,18 @@ class Rows:
         self.order(keyfn)
         return [self._newrows(list(rs)) for _, rs in groupby(self, keyfn)]
 
-    def overlap(self, size, step=1):
-        result = []
-        for i in range(0, len(self), step):
-            result.append(self[i:i + size])
-        return result
+    def overlap(self, size, step=1, group=None):
+        if group:
+            xs = self.group(group)
+            result = []
+            for i in range(0, len(xs), step):
+                result.append(self._newrows(chain(*xs[i:i + size])))
+            return result
+        else:
+            result = []
+            for i in range(0, len(self), step):
+                result.append(self[i:i + size])
+            return result
 
     def chunk(self, n, col=None):
         """Yields Rows, useful for building portfolios
