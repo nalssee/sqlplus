@@ -9,7 +9,6 @@ import csv
 from itertools import groupby, zip_longest
 from sqlplus import util
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("filename", type=str,
                     help="FnGuide filename")
