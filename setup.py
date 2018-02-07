@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sqlplus',
-      version='1.5.2',
+      version='1.6.0',
       description='data work tools',
       url='https://github.com/nalssee/sqlplus.git',
       author='nalssee',
@@ -14,5 +14,5 @@ setup(name='sqlplus',
           'xlrd==1.1.0',
           'openpyxl==2.5.0'
       ],
-      scripts=['bin/prepend', 'bin/fnguide', 'bin/xl2csv'],
+      # scripts=['bin/prepend', 'bin/fnguide', 'bin/xl2csv'],
       zip_safe=False)

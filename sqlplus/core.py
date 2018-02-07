@@ -16,6 +16,7 @@ from sas7bdat import SAS7BDAT
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate
+from openpyxl import load_workbook
 
 from .util import isnum, _listify, _peek_first, \
     _random_string, dmath, dconv
@@ -916,4 +917,12 @@ def _read_excel(filename):
     df = pd.read_excel(filename)
     yield from read_df(df)
 
+
+def readxl(fname, sheet_name='Sheet1'):
+    fname = os.path.join(WORKSPACE, fname)
+    result = []
+    workbook = load_workbook(fname)
+    for row in workbook[sheet_name].iter_rows():
+        result.append([c.value or '' for c in row])
+    return result
 

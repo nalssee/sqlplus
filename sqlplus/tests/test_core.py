@@ -7,7 +7,7 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus import connect, Rows, Row, isnum, setdir, dconv, dmath
+from sqlplus import connect, Rows, Row, isnum, setdir, dconv, dmath, readxl
 
 
 setdir('data')
@@ -453,6 +453,11 @@ class TestMisc(unittest.TestCase):
         with connect(':memory:') as c:
             c.load('ff5_ew_mine.sas7bdat')
             self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
+
+    def test_readxl(self):
+        xs = readxl('comp.xlsx')
+        self.assertEqual(len(xs), 185)
+        self.assertEqual(len(xs[0]), 31)
 
 
 if __name__ == "__main__":
