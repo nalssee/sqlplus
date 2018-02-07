@@ -250,12 +250,7 @@ class Rows:
 
         Returns float
         """
-        if wcol:
-            rs = self.isnum(col, wcol)
-            total = sum(r[wcol] for r in rs)
-            val = sum(r[col] * r[wcol] for r in rs) / total
-        else:
-            val = st.mean(r[col] for r in self if isnum(r[col]))
+        val = np.average(self[col], weights=self[wcol] if wcol else None)
         return round(val, ndigits) if ndigits else val
 
     def ols(self, model):
