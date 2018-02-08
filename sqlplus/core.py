@@ -545,22 +545,26 @@ class SQLPlus:
             |  fn(Row -> Row): Row transformer
             |  pkeys(str or list of str): primary keys
         """
-        fname, ext = os.path.splitext(filename)
+        if isinstance(filename, str):
+            fname, ext = os.path.splitext(filename)
 
-        if ext == '.csv':
-            seq = _read_csv(filename, encoding)
-        elif ext == '.xlsx':
-            seq = _read_excel(filename)
-        elif ext == '.sas7bdat':
-            seq = _read_sas(filename)
+            if ext == '.csv':
+                seq = _read_csv(filename, encoding)
+            elif ext == '.xlsx':
+                seq = _read_excel(filename)
+            elif ext == '.sas7bdat':
+                seq = _read_sas(filename)
+            else:
+                raise ValueError('Unknown file extension', ext)
+            name = name or fname
         else:
-            raise ValueError('Unknown file extension', ext)
+            seq = filename
 
-        name = name or fname
         if name in self.get_tables():
             return
         if fn:
             seq = (fn(r) for r in seq)
+
         self.insert(seq, name, pkeys)
 
     def to_csv(self, tname, outfile=None, cols=None,
