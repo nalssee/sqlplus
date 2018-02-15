@@ -8,7 +8,6 @@ import warnings
 import inspect
 import numpy as np
 import csv
-import statistics as st
 import pandas as pd
 import shutil
 from concurrent.futures import ProcessPoolExecutor
@@ -445,7 +444,7 @@ class SQLPlus:
         Args:
             |  tname(str): table name
             |  cols(str or list of str): columns to fetch
-            |  where(str): where clause in SQL query
+            |  where: predicate function
             |  order(str or list of str): comma separated str
             |  group(str or list of str): comma separated str
             |  overlap: int or (int, int)
@@ -474,29 +473,32 @@ class SQLPlus:
 
         order = group + order
 
-        qry = _build_query(tname, cols, where, order)
+        qry = _build_query(tname, cols, None, order)
         qrows = self.conn.cursor().execute(qry)
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
         if len(columns) != len(set(columns)):
             raise ValueError('Duplicates in columns names')
 
+        rows = (_build_row(r, columns) for r in qrows)
+        if where:
+            rows = (r for r in rows if where(r))
+
         if overlap:
             size, step = (overlap, 1) if isnum(overlap) else overlap
             if group:
-                grows = (_build_rows(rs, columns)
-                         for _, rs in groupby(qrows, _build_keyfn(group)))
+                gby = groupby(rows, _build_keyfn(group))
+                grows = (Rows(rs) for _, rs in gby)
                 yield from (Rows(chain(*xs))
                             for xs in _overlap(grows, size, step))
             else:
-                yield from (_build_rows(rs, columns)
-                            for rs in _overlap(qrows, size, step))
+                yield from (Rows(rs) for rs in _overlap(rows, size, step))
         elif group:
-            gby = groupby(qrows, _build_keyfn(group))
-            yield from (_build_rows(rs, columns) for _, rs in gby)
+            gby = groupby(rows, _build_keyfn(group))
+            yield from (Rows(rs) for _, rs in gby)
 
         else:
-            yield from (_build_row(r, columns) for r in qrows)
+            yield from rows
 
     def insert(self, rs, name, pkeys=None):
         """Insert Rows or sequence of Row(s)
@@ -861,11 +863,6 @@ def _build_query(tname, cols=None, where=None, order=None):
     return f'select {cols} from {tname} {where} {order}'
 
 
-# sequence row values to rows
-def _build_rows(qrows, cols):
-    return Rows([_build_row(qr, cols) for qr in qrows])
-
-
 def _build_row(qr, cols):
     r = Row()
     for c, v in zip(cols, qr):
@@ -930,3 +927,174 @@ def readxl(fname, sheet_name='Sheet1'):
         result.append([c.value or '' for c in row])
     return result
 
+
+def process(*jobs):
+    def build_unions(jobs):
+        def keyfn(x):
+            if isinstance(x, Apply):
+                return x.inputs + [x.output]
+            else:
+                return x
+
+        result = []
+        for _, gs in groupby(jobs, keyfn):
+            gs = list(gs)
+            if len(gs) == 1:
+                result.append(gs[0])
+            else:
+                g0 = gs[0]
+                fns = [g1.fn for g1 in gs]
+                selects = [g1.select for g1 in gs]
+                result.append(Union(g0.inputs[0], g0.output, fns, selects))
+        return result
+
+    def find_required_tables(jobs):
+        tables = set()
+        for job in jobs:
+            for table in job.inputs:
+                tables.add(table)
+            tables.add(job.output)
+        return tables
+
+    def dfs(data, path, paths=[]):
+        datum = path[-1]
+        if datum in data:
+            for val in data[datum]:
+                new_path = path + [val]
+                paths = dfs(data, new_path, paths)
+        else:
+            paths += [path]
+        return paths
+
+    def build_graph(jobs):
+        graph = {}
+        for job in jobs:
+            for ip in job.inputs:
+                if graph.get(ip):
+                    graph[ip].add(job.output)
+                else:
+                    graph[ip] = {job.output}
+        for x in graph:
+            graph[x] = list(graph[x])
+        return graph
+
+    DBNAME = 'workspace.db'
+    required_tables = find_required_tables(jobs)
+    with connect(DBNAME) as c:
+        def delete_after(missing_table, paths):
+            for path in paths:
+                if missing_table in path:
+                    for x in path[path.index(missing_table):]:
+                        c.drop(x)
+
+        def get_missing_tables():
+            existing_tables = c.get_tables()
+            return [table for table in required_tables
+                    if table not in existing_tables]
+
+        def find_jobs_to_do(jobs):
+            missing_tables = get_missing_tables()
+            result = []
+            for job in jobs:
+                for table in (job.inputs + [job.output]):
+                    if table in missing_tables:
+                        result.append(job)
+                        break
+            return result
+
+        def is_doable(job):
+            missing_tables = get_missing_tables()
+            return all(table not in missing_tables for table in job.inputs)
+
+        jobs = build_unions(jobs)
+        graph = build_graph(jobs)
+        starting_points = [job.output for job in jobs if isinstance(job, Load)]
+        paths = []
+        for sp in starting_points:
+            paths += dfs(graph, [sp], [])
+
+        for mt in get_missing_tables():
+            delete_after(mt, paths)
+
+        jobs_to_do = find_jobs_to_do(jobs)
+
+        for job in jobs_to_do:
+            print(job.inputs, job.output)
+
+        while jobs_to_do:
+            for i, job in enumerate(jobs_to_do):
+                if is_doable(job):
+                    job.run(c)
+                    del jobs_to_do[i]
+
+
+class Load:
+    def __init__(self, filename, name=None, encoding='utf-8',
+                 fn=None, pkeys=None):
+        fname, ext = os.path.splitext(filename)
+        self.filename = filename
+        self.encoding = encoding
+        self.fn = fn
+        self.pkeys = pkeys
+
+        self.output = name or fname
+        self.inputs = []
+
+    def run(self, conn):
+        conn.load(self.filename, self.output,
+                  encoding=self.encoding, fn=self.fn, pkeys=self.pkeys)
+
+
+class Join:
+    def __init__(self, *tinfos, name=None, pkeys=None):
+        self.tinfos = tinfos
+        self.name = name
+        self.pkeys = pkeys
+
+        self.output = name or tinfos[0][0]
+        self.inputs = [tinfo[0] for tinfo in tinfos]
+
+    def run(self, conn):
+        conn.join(*self.tinfos, name=self.name, pkeys=self.pkeys)
+
+
+# This is for parallel work
+class Union:
+    def __init__(self, inputs, output, fns, selects):
+        self.fns = fns
+        self.selects = selects
+
+        self.inputs = inputs
+        self.output = output
+
+    def run(self, conn):
+        def buildfn(dbfile, arg):
+            fn, select = arg
+            with connect(dbfile) as c:
+                def gen():
+                    for rs in c.fetch(self.inputs[0], **select):
+                        yield from fn(rs)
+                c.insert(gen(), self.output)
+
+        conn.pwork(buildfn, self.inputs[0], zip(self.fns, self.selects))
+
+
+class Apply:
+    def __init__(self, input, output, fn, **kwargs):
+        self.fn = fn
+        self.select = {}
+        self.pkeys = None
+        for k, v in kwargs.items():
+            if k.uppper() == "PKEYS":
+                self.pkeys = v
+            else:
+                self.select[k] = v
+
+        self.inputs = [input]
+        self.output = output
+
+    def run(self, conn):
+        def gen():
+            for rs in conn.fetch(self.inputs[0], **self.select):
+                yield from self.fn(rs)
+        conn.insert(gen(), self.output, pkeys=self.pkeys)
