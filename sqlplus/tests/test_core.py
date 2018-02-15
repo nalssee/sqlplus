@@ -7,10 +7,15 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus import connect, Rows, Row, isnum, setdir, dconv, dmath, readxl
+from sqlplus import connect, Rows, Row, isnum, dconv, dmath, readxl
 
 
-setdir('data')
+def pred1(r):
+    return r.CategoryID < 5
+
+
+def pred2(r):
+    return r.CategoryID >= 5
 
 
 def price_sum(dbname, where):
@@ -74,13 +79,15 @@ class TestRows(unittest.TestCase):
     def test_isnum(self):
         with connect(':memory:') as q:
             q.load('customers.csv')
-            rs1 = q.rows('customers', where='isnum(PostalCode)')
+            rs1 = q.rows('customers', where=lambda r: isnum(r.PostalCode))
             rs2 = q.rows('customers').isnum('PostalCode')
             self.assertEqual(len(rs1), len(rs2))
 
-            rs1 = q.rows('customers', where='isnum(PostalCode, CustomerID)')
-            rs2 = q.rows('customers', where='isnum(PostalCode)')
-            rs3 = q.rows('customers', where='isnum(PostalCode, City)')
+            rs1 = q.rows('customers', where=lambda r: isnum(r.PostalCode,
+                                                            r.CustomerID))
+            rs2 = q.rows('customers', where=lambda r: isnum(r.PostalCode))
+            rs3 = q.rows('customers', where=lambda r: isnum(r.PostalCode,
+                                                            r.City))
             self.assertEqual(len(rs1), 66)
             self.assertEqual(len(rs2), 66)
             self.assertEqual(len(rs3), 0)
@@ -207,7 +214,7 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(c.rows('products_avg')['n'],
                              [12, 12, 13, 10, 7, 6, 5, 12])
 
-        os.remove('data/test.db')
+        os.remove('test.db')
 
     def test_group_and_overlap(self):
         with connect(':memory:') as c:
@@ -248,7 +255,7 @@ class TestConnection(unittest.TestCase):
             c.drop('orders')
             c.load('orders1.csv')
             self.assertEqual(len(c.rows('orders1')), 196)
-        os.remove('data/orders1.csv')
+        os.remove('orders1.csv')
 
     def test_join(self):
         with connect(':memory:') as c:
@@ -260,11 +267,11 @@ class TestConnection(unittest.TestCase):
             )
             self.assertEqual(len(c.rows('customers')), 213)
 
+
     def test_pwork(self):
         with connect(":memory:") as c:
             c.load('products.csv')
-            c.pwork(price_sum, 'products',
-                    ['CategoryID < 5', 'CategoryID >= 5'])
+            c.pwork(price_sum, 'products', [pred1, pred2])
             self.assertEqual(len(c.rows('psum')), 8)
 
     def test_ins(self):
@@ -277,7 +284,7 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(c.rows('products1')['foo'][0], 1800)
 
             c.drop('products1')
-            for rs in c.fetch('products', group='categoryid'):
+            for rs in c.fetch('products', group='CategoryID'):
                 c.ins(rs, 'products1')
             self.assertEqual(
                 c.rows('products').order('CategoryID')['ProductName, Unit'],
