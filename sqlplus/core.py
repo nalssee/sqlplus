@@ -14,7 +14,7 @@ from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
 from contextlib import contextmanager
 from itertools import groupby, islice, chain, tee, \
-    zip_longest, accumulate
+    zip_longest, accumulate, repeat
 from openpyxl import load_workbook
 
 from .util import isnum, _listify, _peek_first, \
@@ -945,7 +945,9 @@ def process(*jobs):
                 g0 = gs[0]
                 fns = [g1.fn for g1 in gs]
                 selects = [g1.select for g1 in gs]
-                result.append(Union(g0.inputs[0], g0.output, fns, selects))
+                args = [g1.arg for g1 in gs]
+                result.append(Union(g0.inputs[0], g0.output,
+                                    fns, args, selects))
         return result
 
     def find_required_tables(jobs):
@@ -956,6 +958,7 @@ def process(*jobs):
             tables.add(job.output)
         return tables
 
+    # depth first search
     def dfs(data, path, paths=[]):
         datum = path[-1]
         if datum in data:
@@ -1004,7 +1007,8 @@ def process(*jobs):
 
         def is_doable(job):
             missing_tables = get_missing_tables()
-            return all(table not in missing_tables for table in job.inputs)
+            return all(table not in missing_tables for table in job.inputs) \
+                and job.output in missing_tables
 
         jobs = build_unions(jobs)
         graph = build_graph(jobs)
@@ -1017,15 +1021,15 @@ def process(*jobs):
             delete_after(mt, paths)
 
         jobs_to_do = find_jobs_to_do(jobs)
-
-        for job in jobs_to_do:
-            print(job.inputs, job.output)
-
         while jobs_to_do:
+            cnt = 0
             for i, job in enumerate(jobs_to_do):
                 if is_doable(job):
                     job.run(c)
                     del jobs_to_do[i]
+                    cnt += 1
+            if cnt == 0:
+                raise Exception("No jobs to complete")
 
 
 class Load:
@@ -1053,30 +1057,48 @@ class Join:
 
         self.output = name or tinfos[0][0]
         self.inputs = [tinfo[0] for tinfo in tinfos]
+        assert self.output not in self.inputs, """
+        Output table name is one of input table names
+        """
 
     def run(self, conn):
         conn.join(*self.tinfos, name=self.name, pkeys=self.pkeys)
 
 
+# fn for pwork in Union
+def buildfn(dbfile, argset):
+    fn, arg, select, input, output = argset
+    with connect(dbfile) as c:
+        def gen():
+            if arg:
+                for rs in c.fetch(input, **select):
+                    yield from fn(rs, arg)
+            else:
+                for rs in c.fetch(input, **select):
+                    yield from fn(rs)
+        c.insert(gen(), output)
+
+
 # This is for parallel work
 class Union:
-    def __init__(self, inputs, output, fns, selects):
+    def __init__(self, input, output, fns, args, selects):
         self.fns = fns
         self.selects = selects
+        self.args = args
 
-        self.inputs = inputs
+        self.inputs = [input]
         self.output = output
+        assert self.inputs[0] != self.output, """
+        Input and output table name must not be equal
+        """
 
     def run(self, conn):
-        def buildfn(dbfile, arg):
-            fn, select = arg
-            with connect(dbfile) as c:
-                def gen():
-                    for rs in c.fetch(self.inputs[0], **select):
-                        yield from fn(rs)
-                c.insert(gen(), self.output)
-
-        conn.pwork(buildfn, self.inputs[0], zip(self.fns, self.selects))
+        conn.pwork(buildfn, self.inputs[0],
+                   list(zip(self.fns,
+                            self.args,
+                            self.selects,
+                            repeat(self.inputs[0]),
+                            repeat(self.output))))
 
 
 class Apply:
@@ -1084,17 +1106,29 @@ class Apply:
         self.fn = fn
         self.select = {}
         self.pkeys = None
+        self.arg = None
+
         for k, v in kwargs.items():
-            if k.uppper() == "PKEYS":
+            if k.upper() == "PKEYS":
                 self.pkeys = v
+            elif k.upper() == "ARG":
+                self.arg = v
             else:
                 self.select[k] = v
 
         self.inputs = [input]
         self.output = output
+        assert self.inputs[0] != self.output, """
+        Input and output table name must not be equal
+        """
 
     def run(self, conn):
         def gen():
-            for rs in conn.fetch(self.inputs[0], **self.select):
-                yield from self.fn(rs)
+            if self.arg:
+                for rs in conn.fetch(self.inputs[0], **self.select):
+                    yield from self.fn(rs, self.arg)
+            else:
+                for rs in conn.fetch(self.inputs[0], **self.select):
+                    yield from self.fn(rs)
+
         conn.insert(gen(), self.output, pkeys=self.pkeys)
