@@ -773,6 +773,59 @@ class SQLPlus:
         query = f"select {allcols} from {tname0} {jcs}"
         self.create(query, name, pkeys)
 
+
+    def join(self, *tinfos, name=None, pkeys=None):
+        """Simplified version of left join
+
+        Args:
+            |  tinfo: [tname, cols, cols to match]
+            |         ex) ['sample', 'col1, col2 as colx', 'col3, col4']
+            |  name(str): new table name
+            |             the first table name of tinfos
+            |  pkeys(str or list of str): primary keys
+        """
+        def get_newcols(cols):
+            # extract new column names
+            # if there's any renaming
+            result = []
+            for c in _listify(cols):
+                a, *b = [x.strip() for x in c.split('as')]
+                result.append(b[0] if b else a)
+            return result
+
+        # No name specified, then the first table name is the output table name
+        name = name or tinfos[0][0]
+        # rewrite tinfos if there's missing matching columns
+        mcols0 = tinfos[0][2]
+
+        for tname, cols, mcols in tinfos:
+            if hasattr(mcols, '__call__'):
+                for c
+
+
+
+
+        tcols = []
+        # write new temporary tables for performance
+        for tname, cols, mcols in tinfos:
+            newcols = [tname + '.' + c for c in _listify(cols)]
+            tcols.append((tname, newcols, _listify(mcols)))
+
+        tname0, _, mcols0 = tcols[0]
+        join_clauses = []
+        for tname1, _, mcols1 in tcols[1:]:
+            eqs = []
+            for c0, c1 in zip(mcols0, mcols1):
+                if c1:
+                    eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
+            join_clauses.append(f" left join {tname1} on {' and '.join(eqs)} ")
+        jcs = ' '.join(join_clauses)
+        allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
+        query = f"select {allcols} from {tname0} {jcs}"
+        self.create(query, name, pkeys)
+
+
+
     def pwork(self, fn, tname, args):
         n = len(args)
         rndstr = _random_string()
@@ -929,6 +982,7 @@ def readxl(fname, sheet_name='Sheet1'):
 
 
 def process(*jobs):
+    jobs = [job for job in jobs if not isinstance(job, str)]
     def build_unions(jobs):
         def keyfn(x):
             if isinstance(x, Apply):
@@ -1011,6 +1065,11 @@ def process(*jobs):
                 and job.output in missing_tables
 
         jobs = build_unions(jobs)
+
+        outputs = [job.output for job in jobs]
+        dups = set(x for x in outputs if outputs.count(x) > 1)
+        assert len(dups) == 0, f"Dups: {dups}"
+
         graph = build_graph(jobs)
         starting_points = [job.output for job in jobs if isinstance(job, Load)]
         paths = []
@@ -1035,7 +1094,10 @@ def process(*jobs):
 class Load:
     def __init__(self, filename, name=None, encoding='utf-8',
                  fn=None, pkeys=None):
-        fname, ext = os.path.splitext(filename)
+        fname, ext = None, None
+        if isinstance(filename, str):
+            fname, ext = os.path.splitext(filename)
+
         self.filename = filename
         self.encoding = encoding
         self.fn = fn
