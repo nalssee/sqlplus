@@ -20,41 +20,21 @@ def cnt(rs, n):
         yield r
 
 
-# if __name__ == "__main__":
-#     os.remove('workspace.db')
-#     process(
-#         Load('orders.csv'),
-#         Load('customers.csv'),
-#         Apply('orders', 'orders1', month),
-#         Join(
-#             ['orders1', '*', 'customerid'],
-#             ['customers', 'customername, country', 'customerid'],
-#             name="orders2"
-#         ),
-
-#         Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=3, arg=3),
-#         Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=6, arg=6)
-#     )
-
-#     with connect('workspace.db') as c:
-#         assert len(c.rows('order_cnt').where(lambda r: r.n == 3)) == 6
-#         assert len(c.rows('order_cnt').where(lambda r: r.n == 6)) == 3
-
-
-
-
 if __name__ == "__main__":
-    os.remove('workspace.db')
+    if os.path.exists('workspace.db'):
+        os.remove('workspace.db')
     process(
-        orders=Load('orders.csv'),
-        customers=Load('customers.csv'),
-        orders1=Apply('orders', month),
-        orders2=Join(
-                ['orders1', '*', 'customerid'],
-                ['customers', 'customername, country', 'customerid'],
+        Load('orders.csv'),
+        Load('customers.csv'),
+        Apply('orders', 'orders1', month),
+        Join(
+            ['orders1', '*', 'customerid'],
+            ['customers', 'customername, country', lambda r: [r.CustomerID - 1]],
+            name="orders2"
         ),
-        orders_cnt=[Apply('orders2', cnt, group='yyyymm', overlap=3, arg=3),
-                    Apply('orders2', cnt, group='yyyymm', overlap=6, arg=6)]
+
+        Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=3, arg=3),
+        Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=6, arg=6)
     )
 
     with connect('workspace.db') as c:

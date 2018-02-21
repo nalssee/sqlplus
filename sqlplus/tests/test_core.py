@@ -362,7 +362,7 @@ class TestConnection(unittest.TestCase):
                 # if the matching columns (the third item in the following list
                 # is missing, then it is assumed to be the same as
                 # the matching column of the first table
-                ['orders', 'orderid'],
+                ['orders', 'orderid', 'customerid'],
                 name='customers1'
             )
             rs = q.rows('customers1')

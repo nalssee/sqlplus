@@ -712,119 +712,49 @@ class SQLPlus:
         finally:
             self.sql(f'drop table if exists { temp_name }')
 
+    # name must be specified
     def join(self, *tinfos, name=None, pkeys=None):
-        """Simplified version of left join
-
-        Args:
-            |  tinfo: [tname, cols, cols to match]
-            |         ex) ['sample', 'col1, col2 as colx', 'col3, col4']
-            |  name(str): new table name
-            |             the first table name of tinfos
-            |  pkeys(str or list of str): primary keys
-        """
-        def get_newcols(cols):
-            # extract new column names
-            # if there's any renaming
-            result = []
-            for c in _listify(cols):
-                a, *b = [x.strip() for x in c.split('as')]
-                result.append(b[0] if b else a)
-            return result
-
-        # No name specified, then the first table name is the output table name
-        name = name or tinfos[0][0]
         # rewrite tinfos if there's missing matching columns
         mcols0 = tinfos[0][2]
 
-        # validity check, what if mcols is a list of more than 1 element?
-        for x in tinfos:
-            assert len(x) == 2 or len(x) == 3, f"Invalid Arg: {x}"
-        tinfos = [[tname, cols, mcols[0] if mcols else mcols0]
-                  for tname, cols, *mcols in tinfos]
-
-        # Validity checks
-        all_newcols = []
-        # number of matching columns for each given table
-        mcols_sizes = []
-        for _, cols, mcols in tinfos:
-            all_newcols += get_newcols(cols)
-            mcols_sizes.append(len(_listify(mcols)))
-
-        assert len(all_newcols) == len(set(all_newcols)), "Column duplicates"
-        assert len(set(mcols_sizes)) == 1,\
-            "Matching columns must have the same sizes"
-
-        tcols = []
-        # write new temporary tables for performance
-        for tname, cols, mcols in tinfos:
-            newcols = [tname + '.' + c for c in _listify(cols)]
-            tcols.append((tname, newcols, _listify(mcols)))
-
-        tname0, _, mcols0 = tcols[0]
-        join_clauses = []
-        for tname1, _, mcols1 in tcols[1:]:
-            eqs = []
-            for c0, c1 in zip(mcols0, mcols1):
-                if c1:
-                    eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
-            join_clauses.append(f" left join {tname1} on {' and '.join(eqs)} ")
-        jcs = ' '.join(join_clauses)
-        allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
-        query = f"select {allcols} from {tname0} {jcs}"
-        self.create(query, name, pkeys)
-
-
-    def join(self, *tinfos, name=None, pkeys=None):
-        """Simplified version of left join
-
-        Args:
-            |  tinfo: [tname, cols, cols to match]
-            |         ex) ['sample', 'col1, col2 as colx', 'col3, col4']
-            |  name(str): new table name
-            |             the first table name of tinfos
-            |  pkeys(str or list of str): primary keys
-        """
-        def get_newcols(cols):
-            # extract new column names
-            # if there's any renaming
-            result = []
-            for c in _listify(cols):
-                a, *b = [x.strip() for x in c.split('as')]
-                result.append(b[0] if b else a)
-            return result
-
-        # No name specified, then the first table name is the output table name
-        name = name or tinfos[0][0]
-        # rewrite tinfos if there's missing matching columns
-        mcols0 = tinfos[0][2]
-
+        temp_tables = []
+        tinfos1 = []
         for tname, cols, mcols in tinfos:
             if hasattr(mcols, '__call__'):
-                for c
+                newtable = tname + '_' + _random_string()
+                newcols = [newtable + '.' + c for c in _listify(cols)]
 
+                seq = self.fetch(tname)
+                r0, seq = _peek_first(self.fetch(tname))
+                mc = mcols(r0)
+                newmcols = ['col' + _random_string() if (c == 0 or c) else ''
+                            for c in mc]
+                tinfos1.append([newtable, newcols, newmcols])
+                temp_tables.append(newtable)
 
+                def gen():
+                    for r in seq:
+                        for c, v in zip(newmcols, mcols(r)):
+                            r[c] = v
+                        yield r
+                self.insert(gen(), newtable)
+            else:
+                newcols = [tname + '.' + c for c in _listify(cols)]
+                tinfos1.append([tname, newcols, _listify(mcols)])
 
-
-        tcols = []
-        # write new temporary tables for performance
-        for tname, cols, mcols in tinfos:
-            newcols = [tname + '.' + c for c in _listify(cols)]
-            tcols.append((tname, newcols, _listify(mcols)))
-
-        tname0, _, mcols0 = tcols[0]
+        tname0, _, mcols0 = tinfos1[0]
         join_clauses = []
-        for tname1, _, mcols1 in tcols[1:]:
+        for tname1, _, mcols1 in tinfos1[1:]:
             eqs = []
             for c0, c1 in zip(mcols0, mcols1):
                 if c1:
                     eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
             join_clauses.append(f" left join {tname1} on {' and '.join(eqs)} ")
         jcs = ' '.join(join_clauses)
-        allcols = ', '.join(c for _, cols, _ in tcols for c in cols)
+        allcols = ', '.join(c for _, cols, _ in tinfos1 for c in cols)
         query = f"select {allcols} from {tname0} {jcs}"
         self.create(query, name, pkeys)
-
-
+        self.drop(temp_tables)
 
     def pwork(self, fn, tname, args):
         n = len(args)
