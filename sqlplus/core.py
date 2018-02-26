@@ -10,6 +10,7 @@ import numpy as np
 import csv
 import pandas as pd
 import shutil
+from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
 from contextlib import contextmanager
@@ -480,9 +481,18 @@ class SQLPlus:
         if len(columns) != len(set(columns)):
             raise ValueError('Duplicates in columns names')
 
-        rows = (_build_row(r, columns) for r in qrows)
         if where:
-            rows = (r for r in rows if where(r))
+            def gen():
+                for r in qrows:
+                    r0 = _build_row(r, columns)
+                    try:
+                        if where(r0):
+                            yield r0
+                    except Exception:
+                        pass
+            rows = gen()
+        else:
+            rows = (_build_row(r, columns) for r in qrows)
 
         if overlap:
             size, step = (overlap, 1) if isnum(overlap) else overlap
@@ -514,6 +524,7 @@ class SQLPlus:
         try:
             r0, rs = _peek_first(rs)
         except StopIteration:
+            print(f'No Rows to Create: {name}')
             return
 
         cols = r0.columns
@@ -723,21 +734,27 @@ class SQLPlus:
             if hasattr(mcols, '__call__'):
                 newtable = tname + '_' + _random_string()
                 newcols = [newtable + '.' + c for c in _listify(cols)]
-
-                seq = self.fetch(tname)
-                r0, seq = _peek_first(self.fetch(tname))
-                mc = mcols(r0)
-                newmcols = ['col' + _random_string() if (c == 0 or c) else ''
-                            for c in mc]
-                tinfos1.append([newtable, newcols, newmcols])
-                temp_tables.append(newtable)
+                newmcols = []
 
                 def gen():
-                    for r in seq:
-                        for c, v in zip(newmcols, mcols(r)):
-                            r[c] = v
-                        yield r
+                    for r in self.fetch(tname):
+                        try:
+                            vals = mcols(r)
+                            if not newmcols:
+                                for v in vals:
+                                    if (v == 0 or v):
+                                        nc = 'col' + _random_string()
+                                        newmcols.append(nc)
+                                    else:
+                                        newmcols.append('')
+                            for c, v in zip(newmcols, vals):
+                                r[c] = v
+                            yield r
+                        except Exception:
+                            pass
                 self.insert(gen(), newtable)
+                tinfos1.append([newtable, newcols, newmcols])
+                temp_tables.append(newtable)
             else:
                 newcols = [tname + '.' + c for c in _listify(cols)]
                 tinfos1.append([tname, newcols, _listify(mcols)])
@@ -913,6 +930,7 @@ def readxl(fname, sheet_name='Sheet1'):
 
 def process(*jobs):
     jobs = [job for job in jobs if not isinstance(job, str)]
+
     def build_unions(jobs):
         def keyfn(x):
             if isinstance(x, Apply):
@@ -993,8 +1011,12 @@ def process(*jobs):
             missing_tables = get_missing_tables()
             return all(table not in missing_tables for table in job.inputs) \
                 and job.output in missing_tables
-
         jobs = build_unions(jobs)
+
+        for d in [j for j in jobs if isinstance(j, Drop)]:
+            c.drop(d.tables)
+
+        jobs = [j for j in jobs if not isinstance(j, Drop)]
 
         outputs = [job.output for job in jobs]
         dups = set(x for x in outputs if outputs.count(x) > 1)
@@ -1010,15 +1032,20 @@ def process(*jobs):
             delete_after(mt, paths)
 
         jobs_to_do = find_jobs_to_do(jobs)
+        print(f"Starting Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f'To Create: {[j.output for j in jobs_to_do]}')
         while jobs_to_do:
             cnt = 0
             for i, job in enumerate(jobs_to_do):
                 if is_doable(job):
                     job.run(c)
+                    tm = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"Created: {job.output} at {tm}")
                     del jobs_to_do[i]
                     cnt += 1
             if cnt == 0:
-                raise Exception("No jobs to complete")
+                print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
+                break
 
 
 class Load:
@@ -1064,10 +1091,16 @@ def buildfn(dbfile, argset):
         def gen():
             if arg:
                 for rs in c.fetch(input, **select):
-                    yield from fn(rs, arg)
+                    try:
+                        yield from fn(rs, arg)
+                    except Exception:
+                        pass
             else:
                 for rs in c.fetch(input, **select):
-                    yield from fn(rs)
+                    try:
+                        yield from fn(rs)
+                    except Exception:
+                        pass
         c.insert(gen(), output)
 
 
@@ -1091,6 +1124,11 @@ class Union:
                             self.selects,
                             repeat(self.inputs[0]),
                             repeat(self.output))))
+
+
+class Drop:
+    def __init__(self, tables):
+        self.tables = _listify(tables)
 
 
 class Apply:
@@ -1118,9 +1156,15 @@ class Apply:
         def gen():
             if self.arg:
                 for rs in conn.fetch(self.inputs[0], **self.select):
-                    yield from self.fn(rs, self.arg)
+                    try:
+                        yield from self.fn(rs, self.arg)
+                    except Exception:
+                        pass
             else:
                 for rs in conn.fetch(self.inputs[0], **self.select):
-                    yield from self.fn(rs)
-
+                    try:
+                        yield from self.fn(rs)
+                    except Exception:
+                        pass
         conn.insert(gen(), self.output, pkeys=self.pkeys)
+
