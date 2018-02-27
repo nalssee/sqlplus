@@ -933,7 +933,7 @@ def process(*jobs):
 
     def build_unions(jobs):
         def keyfn(x):
-            if isinstance(x, Apply):
+            if isinstance(x, Map):
                 return x.inputs + [x.output]
             else:
                 return x
@@ -1013,10 +1013,13 @@ def process(*jobs):
                 and job.output in missing_tables
         jobs = build_unions(jobs)
 
+        # handle special cases (Drop and CSV, only two yet)
         for d in [j for j in jobs if isinstance(j, Drop)]:
             c.drop(d.tables)
 
-        jobs = [j for j in jobs if not isinstance(j, Drop)]
+        csvs = [j for j in jobs if isinstance(j, CSV)]
+
+        jobs = [j for j in jobs if (not isinstance(j, Drop) and not isinstance(j, CSV))]
 
         outputs = [job.output for job in jobs]
         dups = set(x for x in outputs if outputs.count(x) > 1)
@@ -1046,6 +1049,9 @@ def process(*jobs):
             if cnt == 0:
                 print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
                 break
+        
+        for csv in csvs:
+            c.to_csv(csv.input, **csv.kwargs)
 
 
 class Load:
@@ -1088,20 +1094,22 @@ class Join:
 def buildfn(dbfile, argset):
     fn, arg, select, input, output = argset
     with connect(dbfile) as c:
-        def gen():
-            if arg:
-                for rs in c.fetch(input, **select):
-                    try:
-                        yield from fn(rs, arg)
-                    except Exception:
-                        pass
-            else:
-                for rs in c.fetch(input, **select):
-                    try:
-                        yield from fn(rs)
-                    except Exception:
-                        pass
-        c.insert(gen(), output)
+        c.insert(genfn(c, fn, arg, select, input), output)
+
+
+def genfn(c, fn, arg, select, input):
+    if arg:
+        for rs in c.fetch(input, **select):
+            try:
+                yield from fn(rs, arg)
+            except Exception:
+                pass
+    else:
+        for rs in c.fetch(input, **select):
+            try:
+                yield from fn(rs)
+            except Exception:
+                pass
 
 
 # This is for parallel work
@@ -1131,8 +1139,14 @@ class Drop:
         self.tables = _listify(tables)
 
 
-class Apply:
-    def __init__(self, input, output, fn, **kwargs):
+class CSV:
+    def __init__(self, input, **kwargs):
+        self.table = input 
+        self.kwargs = kwargs
+
+
+class Map:
+    def __init__(self, fn, input, **kwargs):
         self.fn = fn
         self.select = {}
         self.pkeys = None
@@ -1143,28 +1157,16 @@ class Apply:
                 self.pkeys = v
             elif k.upper() == "ARG":
                 self.arg = v
+            elif k.upper() == "NAME":
+                self.output = v
             else:
                 self.select[k] = v
 
         self.inputs = [input]
-        self.output = output
         assert self.inputs[0] != self.output, """
         Input and output table name must not be equal
         """
 
     def run(self, conn):
-        def gen():
-            if self.arg:
-                for rs in conn.fetch(self.inputs[0], **self.select):
-                    try:
-                        yield from self.fn(rs, self.arg)
-                    except Exception:
-                        pass
-            else:
-                for rs in conn.fetch(self.inputs[0], **self.select):
-                    try:
-                        yield from self.fn(rs)
-                    except Exception:
-                        pass
-        conn.insert(gen(), self.output, pkeys=self.pkeys)
-
+        conn.insert(genfn(conn, self.fn, self.arg, self.select, self.inputs[0]), 
+                    self.output, pkeys=self.pkeys)

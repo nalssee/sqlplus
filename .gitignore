@@ -8,5 +8,4 @@ tags
 build/
 .idea/
 venv/
-
-
+*.db

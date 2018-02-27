@@ -25,16 +25,17 @@ if __name__ == "__main__":
         os.remove('workspace.db')
     process(
         Load('orders.csv'),
+        # same as Load('orders.csv', name='orders')
         Load('customers.csv'),
-        Apply('orders', 'orders1', month),
+        Map(month, 'orders', name='orders1'),
         Join(
             ['orders1', '*', 'customerid'],
             ['customers', 'customername, country', lambda r: [r.CustomerID - 1]],
             name="orders2"
         ),
 
-        Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=3, arg=3),
-        Apply('orders2', 'order_cnt', cnt, group='yyyymm', overlap=6, arg=6)
+        Map(cnt, 'orders2', group='yyyymm', overlap=3, arg=3, name='order_cnt'),
+        Map(cnt, 'orders2', group='yyyymm', overlap=6, arg=6, name='order_cnt')
     )
 
     with connect('workspace.db') as c:
