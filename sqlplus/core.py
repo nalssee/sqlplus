@@ -732,7 +732,7 @@ class SQLPlus:
         tinfos1 = []
         for tname, cols, mcols in tinfos:
             if hasattr(mcols, '__call__'):
-                newtable = tname + '_' + _random_string()
+                newtable = tname + '_' + _random_string(10)
                 newcols = [newtable + '.' + c for c in _listify(cols)]
                 newmcols = []
 
@@ -743,7 +743,7 @@ class SQLPlus:
                             if not newmcols:
                                 for v in vals:
                                     if (v == 0 or v):
-                                        nc = 'col' + _random_string()
+                                        nc = 'col' + _random_string(10)
                                         newmcols.append(nc)
                                     else:
                                         newmcols.append('')
@@ -768,8 +768,16 @@ class SQLPlus:
                     eqs.append(f'{tname0}.{c0} = {tname1}.{c1}')
             join_clauses.append(f" left join {tname1} on {' and '.join(eqs)} ")
         jcs = ' '.join(join_clauses)
-        allcols = ', '.join(c for _, cols, _ in tinfos1 for c in cols)
-        query = f"select {allcols} from {tname0} {jcs}"
+
+        allcols = []
+        for i, (_, cols, _) in enumerate(tinfos1):
+            if cols == ['*']:
+                # all cols from the original table
+                allcols += self._cols(f'select * from {tinfos[i][0]}') 
+            else:
+                allcols += cols
+
+        query = f"select {','.join(allcols)} from {tname0} {jcs}"
         self.create(query, name, pkeys)
         self.drop(temp_tables)
 
@@ -1013,14 +1021,6 @@ def process(*jobs):
                 and job.output in missing_tables
         jobs = build_unions(jobs)
 
-        # handle special cases (Drop and CSV, only two yet)
-        for d in [j for j in jobs if isinstance(j, Drop)]:
-            c.drop(d.tables)
-
-        csvs = [j for j in jobs if isinstance(j, CSV)]
-
-        jobs = [j for j in jobs if (not isinstance(j, Drop) and not isinstance(j, CSV))]
-
         outputs = [job.output for job in jobs]
         dups = set(x for x in outputs if outputs.count(x) > 1)
         assert len(dups) == 0, f"Dups: {dups}"
@@ -1050,9 +1050,6 @@ def process(*jobs):
                 print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
                 break
         
-        for csv in csvs:
-            c.to_csv(csv.input, **csv.kwargs)
-
 
 class Load:
     def __init__(self, filename, name=None, encoding='utf-8',
@@ -1132,17 +1129,6 @@ class Union:
                             self.selects,
                             repeat(self.inputs[0]),
                             repeat(self.output))))
-
-
-class Drop:
-    def __init__(self, tables):
-        self.tables = _listify(tables)
-
-
-class CSV:
-    def __init__(self, input, **kwargs):
-        self.table = input 
-        self.kwargs = kwargs
 
 
 class Map:
