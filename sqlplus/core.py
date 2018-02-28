@@ -770,12 +770,13 @@ class SQLPlus:
         jcs = ' '.join(join_clauses)
 
         allcols = []
-        for i, (_, cols, _) in enumerate(tinfos1):
-            if cols == ['*']:
-                # all cols from the original table
-                allcols += self._cols(f'select * from {tinfos[i][0]}') 
-            else:
-                allcols += cols
+        for i, (t1, cols, _) in enumerate(tinfos1):
+            for c in cols:
+                if c.endswith('.*'):
+                    t0 = tinfos[i][0]
+                    allcols += [t1 + '.' + c1 for c1 in self._cols(f'select * from {t0}')]
+                else:
+                    allcols.append(c)
 
         query = f"select {','.join(allcols)} from {tname0} {jcs}"
         self.create(query, name, pkeys)
@@ -939,7 +940,7 @@ def readxl(fname, sheet_name='Sheet1'):
 def process(*jobs):
     jobs = [job for job in jobs if not isinstance(job, str)]
 
-    def build_unions(jobs):
+    def build_parallel(jobs):
         def keyfn(x):
             if isinstance(x, Map):
                 return x.inputs + [x.output]
@@ -956,8 +957,8 @@ def process(*jobs):
                 fns = [g1.fn for g1 in gs]
                 selects = [g1.select for g1 in gs]
                 args = [g1.arg for g1 in gs]
-                result.append(Union(g0.inputs[0], g0.output,
-                                    fns, args, selects))
+                result.append(Parallel(g0.inputs[0], g0.output,
+                                       fns, args, selects))
         return result
 
     def find_required_tables(jobs):
@@ -1019,7 +1020,7 @@ def process(*jobs):
             missing_tables = get_missing_tables()
             return all(table not in missing_tables for table in job.inputs) \
                 and job.output in missing_tables
-        jobs = build_unions(jobs)
+        jobs = build_parallel(jobs)
 
         outputs = [job.output for job in jobs]
         dups = set(x for x in outputs if outputs.count(x) > 1)
@@ -1051,9 +1052,9 @@ def process(*jobs):
                 break
         
 
+# They don't know pkeys, Just ignore it 
 class Load:
-    def __init__(self, filename, name=None, encoding='utf-8',
-                 fn=None, pkeys=None):
+    def __init__(self, filename, name=None, encoding='utf-8', fn=None):
         fname, ext = None, None
         if isinstance(filename, str):
             fname, ext = os.path.splitext(filename)
@@ -1061,21 +1062,19 @@ class Load:
         self.filename = filename
         self.encoding = encoding
         self.fn = fn
-        self.pkeys = pkeys
 
         self.output = name or fname
         self.inputs = []
 
     def run(self, conn):
         conn.load(self.filename, self.output,
-                  encoding=self.encoding, fn=self.fn, pkeys=self.pkeys)
+                  encoding=self.encoding, fn=self.fn)
 
 
 class Join:
-    def __init__(self, *tinfos, name=None, pkeys=None):
+    def __init__(self, *tinfos, name=None):
         self.tinfos = tinfos
         self.name = name
-        self.pkeys = pkeys
 
         self.output = name or tinfos[0][0]
         self.inputs = [tinfo[0] for tinfo in tinfos]
@@ -1084,10 +1083,10 @@ class Join:
         """
 
     def run(self, conn):
-        conn.join(*self.tinfos, name=self.name, pkeys=self.pkeys)
+        conn.join(*self.tinfos, name=self.name)
 
 
-# fn for pwork in Union
+# fn for pwork in paralell
 def buildfn(dbfile, argset):
     fn, arg, select, input, output = argset
     with connect(dbfile) as c:
@@ -1110,7 +1109,7 @@ def genfn(c, fn, arg, select, input):
 
 
 # This is for parallel work
-class Union:
+class Parallel:
     def __init__(self, input, output, fns, args, selects):
         self.fns = fns
         self.selects = selects
@@ -1135,7 +1134,6 @@ class Map:
     def __init__(self, fn, input, **kwargs):
         self.fn = fn
         self.select = {}
-        self.pkeys = None
         self.arg = None
 
         for k, v in kwargs.items():
@@ -1154,5 +1152,4 @@ class Map:
         """
 
     def run(self, conn):
-        conn.insert(genfn(conn, self.fn, self.arg, self.select, self.inputs[0]), 
-                    self.output, pkeys=self.pkeys)
+        conn.insert(genfn(conn, self.fn, self.arg, self.select, self.inputs[0]), self.output)
