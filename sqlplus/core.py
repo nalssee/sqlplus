@@ -1071,6 +1071,22 @@ class Load:
                   encoding=self.encoding, fn=self.fn)
 
 
+class Union:
+    def __init__(self, tables, name=None):
+        self.inputs = _listify(tables)
+        self.output = name 
+        assert self.output not in self.inputs, """
+        Output table name is one of the input table names
+        """
+
+    def run(self, conn):
+        def gen():
+            for input in self.inputs:
+                for r in conn.fetch(input):
+                    yield r 
+        conn.insert(gen(), self.output)
+
+
 class Join:
     def __init__(self, *tinfos, name=None):
         self.tinfos = tinfos
@@ -1079,7 +1095,7 @@ class Join:
         self.output = name or tinfos[0][0]
         self.inputs = [tinfo[0] for tinfo in tinfos]
         assert self.output not in self.inputs, """
-        Output table name is one of input table names
+        Output table name is one of the input table names
         """
 
     def run(self, conn):
