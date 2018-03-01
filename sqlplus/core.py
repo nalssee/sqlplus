@@ -942,7 +942,7 @@ def drop(tables):
         c.drop(tables)
 
  
-def csv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
+def tocsv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
         c.to_csv(tname, outfile, cols, where, order, encoding)
 
