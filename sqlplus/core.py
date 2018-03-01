@@ -25,9 +25,9 @@ from .util import isnum, _listify, _peek_first, \
 warnings.filterwarnings('ignore')
 import statsmodels.api as sm
 
-
+# workspace will be deprecated
 WORKSPACE = ''
-
+DBNAME = 'workspace.db'
 
 def setdir(path):
     """Set working directory
@@ -937,6 +937,16 @@ def readxl(fname, sheet_name='Sheet1'):
     return result
 
 
+def drop(tables):
+    with connect(DBNAME) as c:
+        c.drop(tables)
+
+ 
+def csv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
+    with connect(DBNAME) as c:
+        c.to_csv(tname, outfile, cols, where, order, encoding)
+
+
 def process(*jobs):
     jobs = [job for job in jobs if not isinstance(job, str)]
 
@@ -992,7 +1002,6 @@ def process(*jobs):
             graph[x] = list(graph[x])
         return graph
 
-    DBNAME = 'workspace.db'
     required_tables = find_required_tables(jobs)
     with connect(DBNAME) as c:
         def delete_after(missing_table, paths):

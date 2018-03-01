@@ -35,12 +35,19 @@ if __name__ == "__main__":
         ),
 
         Map(cnt, 'orders2', group='yyyymm', overlap=3, arg=3, name='order_cnt'),
-        Map(cnt, 'orders2', group='yyyymm', overlap=6, arg=6, name='order_cnt')
+        Map(cnt, 'orders2', group='yyyymm', overlap=6, arg=6, name='order_cnt'),
+
+        Map(lambda r: [r], 'orders2', name='orders3'),
+        Union('orders2, orders3', name='orders4')
+
     )
 
     with connect('workspace.db') as c:
         assert len(c.rows('order_cnt').where(lambda r: r.n == 3)) == 6
         assert len(c.rows('order_cnt').where(lambda r: r.n == 6)) == 3
+
+        assert len(c.rows('orders2')) * 2 == len(c.rows('orders4')) 
+
 
 
 
