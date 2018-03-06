@@ -12,7 +12,8 @@ setup(name='sqlplus',
       install_requires=[
           'sas7bdat==2.0.7',
           'xlrd==1.1.0',
-          'openpyxl==2.5.0'
+          'openpyxl==2.5.0',
+          'psutil==5.4.3',
       ],
       # scripts=['bin/prepend', 'bin/fnguide', 'bin/xl2csv'],
       zip_safe=False)

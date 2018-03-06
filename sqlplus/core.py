@@ -3,13 +3,16 @@ Utils for statistical analysis using sqlite3 engine
 """
 import os
 import sqlite3
-import copy
+import copy as cp
 import warnings
 import inspect
 import numpy as np
 import csv
 import pandas as pd
 import shutil
+import collections
+import locale 
+import psutil 
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
@@ -28,6 +31,8 @@ import statsmodels.api as sm
 # workspace will be deprecated
 WORKSPACE = ''
 DBNAME = 'workspace.db'
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 
 def setdir(path):
     """Set working directory
@@ -74,6 +79,8 @@ class _AggBuilder:
         self.rows.append(args)
 
 
+
+
 # Don't try to be smart, unless you really know well
 class Row:
     """Mutable version of sqlite3.row
@@ -99,6 +106,13 @@ class Row:
         """
         return list(self._dict.values())
 
+    def copy(self):
+        # 
+        r0 = Row()
+        for c, v in zip(self.columns, self.values):
+            r0[c] = v
+        return r0   
+ 
     def __getattr__(self, name):
         return self._dict[name]
 
@@ -132,6 +146,7 @@ class Row:
     # hasattr doesn't work properly
     # you can't make it work by changing getters and setters
     # to an ordinary way. but it is slower
+
 
 
 class Rows:
@@ -201,9 +216,15 @@ class Rows:
         # copying rows and build Rows object
         # Am I worring too much?, this is for inheritance
         self.rows, temp = [], self.rows
-        other = copy.copy(self)
+        other = cp.copy(self)
         other.rows, self.rows = list(rs), temp
         return other
+
+    def copy(self):
+        rs0 = []
+        for r in self.rows:
+            rs0.append(r.copy())
+        return self._newrows(rs0)
 
     # Limited version of __setitem__
     def set(self, k, v):
@@ -251,7 +272,12 @@ class Rows:
 
         Returns float
         """
-        val = np.average(self[col], weights=self[wcol] if wcol else None)
+        if wcol:
+            xs = self.isnum(col, wcol)
+            val = np.average(xs[col], weights=xs[wcol])
+        else:
+            xs = self.isnum(col)
+            val = np.average(xs[col])
         return round(val, ndigits) if ndigits else val
 
     def ols(self, model):
@@ -794,7 +820,7 @@ class SQLPlus:
                 shutil.copyfile(os.path.join(WORKSPACE, tempdbs[0]),
                                 os.path.join(WORKSPACE, tempdb))
 
-            with ProcessPoolExecutor(max_workers=n) as exe:
+            with ProcessPoolExecutor(max_workers=psutil.cpu_count(logical=False)) as exe:
                 exe.map(fn, tempdbs, args)
 
             with connect(tempdbs[0]) as c:
@@ -928,13 +954,27 @@ def _read_excel(filename):
     yield from read_df(df)
 
 
-def readxl(fname, sheet_name='Sheet1'):
+def readxl(fname, sheet_name=None, encoding='utf-8'):
+    def conv(x):
+        try:
+            return locale.atoi(x)
+        except ValueError:
+            try:
+                return locale.atof(x)
+            except:
+                return x
+
     fname = os.path.join(WORKSPACE, fname)
-    result = []
-    workbook = load_workbook(fname)
-    for row in workbook[sheet_name].iter_rows():
-        result.append([c.value or '' for c in row])
-    return result
+    if fname.endswith('.csv'):
+        with open(fname, encoding=encoding) as fin:
+            for rs in csv.reader(x.replace('\0', '') for x in fin):
+                yield [conv(x) for x in rs]
+    else:
+        workbook = load_workbook(fname)
+        if not sheet_name:
+            sheet_name = workbook.sheetnames[0]
+        for row in workbook[sheet_name].iter_rows():
+            yield [c.value or '' for c in row]
 
 
 def drop(tables):
@@ -1061,6 +1101,17 @@ def process(*jobs):
                 break
         
 
+def add(**kwargs):
+    def fn(r):
+        for k, v in kwargs.items():
+            try:
+                r[k] = v(r)
+            except Exception:
+                r[k] = ''
+        return r
+    return fn
+
+
 # They don't know pkeys, Just ignore it 
 class Load:
     def __init__(self, filename, name=None, encoding='utf-8', fn=None):
@@ -1076,8 +1127,12 @@ class Load:
         self.inputs = []
 
     def run(self, conn):
+        if isinstance(self.fn, dict):
+            fn = add(**self.fn)
+        else:
+            fn = self.fn
         conn.load(self.filename, self.output,
-                  encoding=self.encoding, fn=self.fn)
+                  encoding=self.encoding, fn=fn)
 
 
 class Union:
@@ -1122,13 +1177,24 @@ def genfn(c, fn, arg, select, input):
     if arg:
         for rs in c.fetch(input, **select):
             try:
-                yield from fn(rs, arg)
+                val = fn(rs, arg)
+                if isinstance(val, collections.Iterable):
+                    yield from val 
+                else:
+                    yield val
             except Exception:
                 pass
     else:
+        if isinstance(fn, dict):
+            fn = add(**fn)
+
         for rs in c.fetch(input, **select):
             try:
-                yield from fn(rs)
+                val = fn(rs)
+                if isinstance(val, collections.Iterable):
+                    yield from val
+                else:
+                    yield val 
             except Exception:
                 pass
 
