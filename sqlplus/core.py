@@ -1124,6 +1124,7 @@ class Load:
         self.fn = fn
 
         self.output = name or fname
+        assert self.output is not None, "Table name must be provided"
         self.inputs = []
 
     def run(self, conn):

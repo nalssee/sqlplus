@@ -462,7 +462,7 @@ class TestMisc(unittest.TestCase):
             self.assertEqual(len(c.rows('ff5_ew_mine')), 253)
 
     def test_readxl(self):
-        xs = readxl('comp.xlsx')
+        xs = list(readxl('comp.xlsx'))
         self.assertEqual(len(xs), 185)
         self.assertEqual(len(xs[0]), 31)
 
