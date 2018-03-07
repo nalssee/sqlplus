@@ -1,14 +1,15 @@
 import os
 from sqlplus import *
 
+from sqlplus.core import connect
 
 def month(r):
-    r.yyyymm = dconv(r.orderdate, "%Y-%m-%d", "%Y-%m")
+    r.yyyymm = dmath(r.orderdate, {}, "%Y-%m-%d", "%Y-%m")
     yield r
 
 
 def addmonth(date, n):
-    return dmath(date, f"{n} months", "%Y-%m")
+    return dmath(date, {'months': n}, "%Y-%m")
 
 
 def cnt(rs, n):
@@ -18,6 +19,10 @@ def cnt(rs, n):
         r.cnt = len(rs)
         r.n = n
         yield r
+
+
+def allrows(c, tname):
+    return Rows(c.fetch(tname))
 
 
 if __name__ == "__main__":
@@ -37,18 +42,12 @@ if __name__ == "__main__":
         Map(cnt, 'orders2', group='yyyymm', overlap=3, arg=3, name='order_cnt'),
         Map(cnt, 'orders2', group='yyyymm', overlap=6, arg=6, name='order_cnt'),
 
-        Map(lambda r: [r], 'orders2', name='orders3'),
+        Map(lambda r: r, 'orders2', name='orders3'),
         Union('orders2, orders3', name='orders4')
 
     )
 
     with connect('workspace.db') as c:
-        assert len(c.rows('order_cnt').where(lambda r: r.n == 3)) == 6
-        assert len(c.rows('order_cnt').where(lambda r: r.n == 6)) == 3
-
-        assert len(c.rows('orders2')) * 2 == len(c.rows('orders4')) 
-
-
-
-
-
+        assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 3)) == 6
+        assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 6)) == 3
+        assert len(allrows(c, 'orders2')) * 2 == len(allrows(c, 'orders4')) 

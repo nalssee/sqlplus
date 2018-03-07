@@ -34,18 +34,6 @@ DBNAME = 'workspace.db'
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
-def setdir(path):
-    """Set working directory
-
-    Args:
-        path(str): Absolute path
-    """
-    global WORKSPACE
-    WORKSPACE = path
-    if not os.path.exists(WORKSPACE):
-        os.makedirs(WORKSPACE)
-
-
 @contextmanager
 def connect(dbfile, cache_size=100000, temp_store=2):
     # temp_store might be deprecated
@@ -68,17 +56,6 @@ def connect(dbfile, cache_size=100000, temp_store=2):
         splus._cursor.close()
         splus.conn.commit()
         splus.conn.close()
-
-
-# aggreate function builder
-class _AggBuilder:
-    def __init__(self):
-        self.rows = []
-
-    def step(self, *args):
-        self.rows.append(args)
-
-
 
 
 # Don't try to be smart, unless you really know well
@@ -146,7 +123,6 @@ class Row:
     # hasattr doesn't work properly
     # you can't make it work by changing getters and setters
     # to an ordinary way. but it is slower
-
 
 
 class Rows:
@@ -256,12 +232,6 @@ class Rows:
         """
         return self._newrows([r for r in self if pred(r)])
 
-    def isnum(self, *cols):
-        """Filters rows that are all numbers in cols
-        """
-        cols = _listify(','.join(cols))
-        return self._newrows([r for r in self if isnum(*(r[c] for c in cols))])
-
     def avg(self, col, wcol=None, ndigits=None):
         """Computes average
 
@@ -273,10 +243,10 @@ class Rows:
         Returns float
         """
         if wcol:
-            xs = self.isnum(col, wcol)
+            xs = self.where(lambda r: isnum(r[col], r[wcol]))
             val = np.average(xs[col], weights=xs[wcol])
         else:
-            xs = self.isnum(col)
+            xs = self.where(lambda r: isnum(r[col]))
             val = np.average(xs[col])
         return round(val, ndigits) if ndigits else val
 
@@ -459,11 +429,6 @@ class SQLPlus:
         self._cursor.execute(f'PRAGMA temp_store={temp_store}')
         self._cursor.execute('PRAGMA journal_mode=OFF')
 
-        # load some user-defined functions from util.py, istext unnecessary
-        self.conn.create_function('isnum', -1, isnum)
-        self.conn.create_function('dmath', 3, dmath)
-        self.conn.create_function('dconv', 3, dconv)
-
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, overlap=None):
         """Generates a sequence of rows from a table.
@@ -479,7 +444,6 @@ class SQLPlus:
         Yields:
             Row or Rows
         """
-
         def _overlap(seq, size, step):
             """generates chunks of seq for rollover tasks.
             seq is assumed to be ordered
@@ -532,17 +496,15 @@ class SQLPlus:
         elif group:
             gby = groupby(rows, _build_keyfn(group))
             yield from (Rows(rs) for _, rs in gby)
-
         else:
             yield from rows
 
-    def insert(self, rs, name, pkeys=None):
+    def insert(self, rs, name):
         """Insert Rows or sequence of Row(s)
 
         Args:
             |  rs(Rows, or sequence of Row(s))
             |  name(str): table name
-            |  pkeys(str or list of str): primary keys
         """
         self.drop(name)
         rs = iter(rs)
@@ -556,25 +518,11 @@ class SQLPlus:
         cols = r0.columns
         n = len(cols)
 
-        self._cursor.execute(_create_statement(name, cols, pkeys))
+        self._cursor.execute(_create_statement(name, cols))
         istmt = _insert_statement(name, n)
         self._cursor.executemany(istmt, (r.values for r in rs))
 
-    def ins(self, rs, name, pkeys=None):
-        def _prep(r0):
-            if name not in self.get_tables():
-                self._cursor.execute(_create_statement(name, r0.columns,
-                                     pkeys))
-            return _insert_statement(name, len(r0.columns))
-
-        if isinstance(rs, Row):
-            self._cursor.execute(_prep(rs), rs.values)
-        # list or Rows
-        else:
-            self._cursor.executemany(_prep(rs[0]), (r.values for r in rs))
-
-    def load(self, filename, name=None, encoding='utf-8',
-             fn=None, pkeys=None):
+    def load(self, filename, name=None, encoding='utf-8', fn=None):
         """Read data file and save it on database
 
         Args:
@@ -582,7 +530,6 @@ class SQLPlus:
             |  name(str): table name
             |  encoding(str): file encoding
             |  fn(Row -> Row): Row transformer
-            |  pkeys(str or list of str): primary keys
         """
         if isinstance(filename, str):
             fname, ext = os.path.splitext(filename)
@@ -604,9 +551,9 @@ class SQLPlus:
         if fn:
             seq = (fn(r) for r in seq)
 
-        self.insert(seq, name, pkeys)
+        self.insert(seq, name)
 
-    def to_csv(self, tname, outfile=None, cols=None,
+    def tocsv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
         """Table to csv file
 
@@ -629,53 +576,6 @@ class SQLPlus:
             for r in rs:
                 w.writerow(r.values)
 
-    # register function to sql
-    def register(self, fn, name=None):
-        """Register Python function on SQL
-        """
-        def newfn(*args):
-            try:
-                return fn(*args)
-            # Whatever is fine
-            except Exception:
-                return ''
-
-        args = []
-        for p in inspect.signature(fn).parameters.values():
-            if p.kind != p.VAR_POSITIONAL:
-                args.append(p)
-        n = len(args) if args else -1
-        name = name or fn.__name__
-        self.conn.create_function(name, n, newfn)
-
-    # register aggregate function to sql
-    def register_agg(self, fn, name=None):
-        """Register aggregate Python function on SQL
-
-        Args:
-            |  fn: each arg is a list of column values
-            |  name(str): function name to use in SQL
-        """
-        d = {}
-
-        def finalize(self):
-            try:
-                return fn(*(x for x in zip(*self.rows)))
-            except Exception:
-                return ''
-        d['finalize'] = finalize
-
-        args = []
-        for p in inspect.signature(fn).parameters.values():
-            if p.kind != p.VAR_POSITIONAL:
-                args.append(p)
-        n = len(args) if args else -1
-
-        clsname = 'Temp' + _random_string()
-        name = name or fn.__name__
-        self.conn.create_aggregate(fn.__name__, n,
-                                   type(clsname, (_AggBuilder,), d))
-
     def get_tables(self):
         """List of table names in database
         """
@@ -685,27 +585,6 @@ class SQLPlus:
         """)
         tables = [row[1] for row in query]
         return tables
-
-    # args can be a list, a tuple or a dictionary
-    # It is unlikely that we need to worry about the security issues
-    # but still there's no harm. So...
-    def sql(self, query):
-        """Simply executes sql statement and update tables attribute
-
-        Args:
-            |  query(str): SQL query
-        """
-        return self._cursor.execute(query)
-
-    def rows(self, tname, cols=None, where=None, order=None):
-        """Returns Rows
-        """
-        return Rows(self.fetch(tname, cols, where, order))
-
-    def df(self, tname, cols=None, where=None, order=None):
-        """Returns pandas data frame
-        """
-        return self.rows(tname, cols, where, order).df(cols)
 
     def drop(self, tables):
         """Drops tables if exist
@@ -717,40 +596,18 @@ class SQLPlus:
         for table in tables:
             # you can't use '?' for table name
             # '?' is for data insertion
-            self.sql(f'drop table if exists {table}')
+            self._cursor.execute(f'drop table if exists {table}')
 
+    # may or may not be deprecated
     def rename(self, old, new):
         """Rename a table from old to new
         """
         if old in self.get_tables():
-            self.sql(f'drop table if exists { new }')
-            self.sql(f'alter table { old } rename to { new }')
-
-    def create(self, query, name=None, pkeys=None):
-        """Create new table from query(select statement)
-
-        Args:
-            |  query(str)
-            |  name(str): new table name, original table from the query
-            |             if not exists
-            |  pkeys(str or list of str): primary keys
-        """
-        temp_name = 'table_' + _random_string()
-        idx = query.lower().split().index('from')
-        tname = query.split()[idx + 1]
-        # keep pkeys from the original table if not exists
-        pkeys = _listify(pkeys) if pkeys else self._pkeys(tname)
-        name = name or tname
-        try:
-            self.sql(_create_statement(temp_name, self._cols(query), pkeys))
-            self.sql(f'insert into {temp_name} {query}')
-            self.sql(f'drop table if exists { name }')
-            self.sql(f"alter table { temp_name } rename to { name }")
-        finally:
-            self.sql(f'drop table if exists { temp_name }')
+            self._cursor.execute(f'drop table if exists { new }')
+            self._cursor.execute(f'alter table { old } rename to { new }')
 
     # name must be specified
-    def join(self, *tinfos, name=None, pkeys=None):
+    def join(self, *tinfos, name=None):
         # rewrite tinfos if there's missing matching columns
         mcols0 = tinfos[0][2]
 
@@ -805,17 +662,35 @@ class SQLPlus:
                     allcols.append(c)
 
         query = f"select {','.join(allcols)} from {tname0} {jcs}"
-        self.create(query, name, pkeys)
+        self.create(query, name)
         self.drop(temp_tables)
+
+    def create(self, query, name=None):
+        """Create new table from query(select statement)
+        Args:
+            |  query(str)
+            |  name(str): new table name, original table from the query
+            |             if not exists
+        """
+        temp_name = 'table_' + _random_string()
+        idx = query.lower().split().index('from')
+        tname = query.split()[idx + 1]
+        name = name or tname
+        try:
+            self._cursor.execute(_create_statement(temp_name, self._cols(query)))
+            self._cursor.execute(f'insert into {temp_name} {query}')
+            self._cursor.execute(f'drop table if exists { name }')
+            self._cursor.execute(f"alter table { temp_name } rename to { name }")
+        finally:
+            self._cursor.execute(f'drop table if exists { temp_name }')
 
     def pwork(self, fn, tname, args):
         n = len(args)
         rndstr = _random_string()
         tempdbs = ['temp' + rndstr + str(i) for i in range(n)]
-        pkeys = self._pkeys(tname)
         try:
             with connect(tempdbs[0]) as c:
-                c.insert(self.fetch(tname), tname, pkeys=pkeys)
+                c.insert(self.fetch(tname), tname)
             for tempdb in tempdbs[1:]:
                 shutil.copyfile(os.path.join(WORKSPACE, tempdbs[0]),
                                 os.path.join(WORKSPACE, tempdb))
@@ -837,10 +712,9 @@ class SQLPlus:
     def _collect(self, tname, dbnames):
         with connect(dbnames[0]) as c:
             cols = c._cols(f"select * from {tname}")
-            pkeys = c._pkeys(tname)
 
         self.drop(tname)
-        self.sql(_create_statement(tname, cols, pkeys))
+        self._cursor.execute(_create_statement(tname, cols))
         ismt = _insert_statement(tname, len(cols))
         for dbname in dbnames:
             with connect(dbname) as c:
@@ -848,11 +722,11 @@ class SQLPlus:
                                          (r.values for r in c.fetch(tname)))
 
     def _cols(self, query):
-        return [c[0] for c in self.sql(query).description]
+        return [c[0] for c in self._cursor.execute(query).description]
 
     def _pkeys(self, tname):
         "Primary keys in order"
-        pks = [r for r in self.sql(f'pragma table_info({tname})') if r[5]]
+        pks = [r for r in self._cursor.execute(f'pragma table_info({tname})') if r[5]]
         return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
 
@@ -868,18 +742,17 @@ def _build_keyfn(key):
     else:
         return lambda r: [r[colname] for colname in colnames]
 
-
-def _create_statement(name, colnames, pkeys):
+# primary keys are too much for non-experts
+def _create_statement(name, colnames):
     """create table if not exists foo (...)
 
     Note:
         Every type is numeric.
         Table name and column names are all lower cased
     """
-    pkeys = [f"primary key ({', '.join(_listify(pkeys))})"] if pkeys else []
     # every col is numeric, this may not be so elegant but simple to handle.
     # If you want to change this, Think again
-    schema = ', '.join([col + ' ' + 'numeric' for col in colnames] + pkeys)
+    schema = ', '.join([col + ' ' + 'numeric' for col in colnames])
     return "create table if not exists %s (%s)" % (name, schema)
 
 
@@ -977,6 +850,11 @@ def readxl(fname, sheet_name=None, encoding='utf-8'):
             yield [c.value or '' for c in row]
 
 
+def rename(old, new):
+    with connect(DBNAME) as c:
+        c.rename(old, new)
+
+
 def drop(tables):
     with connect(DBNAME) as c:
         c.drop(tables)
@@ -984,7 +862,7 @@ def drop(tables):
  
 def tocsv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
-        c.to_csv(tname, outfile, cols, where, order, encoding)
+        c.tocsv(tname, outfile, cols, where, order, encoding)
 
 
 def process(*jobs):
@@ -1229,9 +1107,7 @@ class Map:
         self.arg = None
 
         for k, v in kwargs.items():
-            if k.upper() == "PKEYS":
-                self.pkeys = v
-            elif k.upper() == "ARG":
+            if k.upper() == "ARG":
                 self.arg = v
             elif k.upper() == "NAME":
                 self.output = v

@@ -3,7 +3,7 @@ Functions that are not specific to "Row" objects
 """
 import random
 import string
-from itertools import chain
+from itertools import chain, zip_longest
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -26,26 +26,26 @@ def dconv(date, infmt, outfmt):
     return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
 
 
-def dmath(date, size, fmt):
+def dmath(date, size, infmt, outfmt=None):
     """Date arithmetic
 
     Args:
         |  date(int or str): 19991231 or "1999-12-31'
-        |  size(str): "3 months"
+        |  size: {'months': 3} 
         |  fmt(str): date format
 
     Returns int if input(date) is int else str
     """
-    if isinstance(size, str):
-        n, unit = size.split()
-        if not unit.endswith('s'):
-            unit = unit + 's'
-        size = {unit: int(n)}
-    d1 = datetime.strptime(str(date), fmt) + relativedelta(**size)
-    d2 = d1.strftime(fmt)
+    outfmt = outfmt or infmt
+    if not size:
+        return dconv(date, infmt, outfmt)
+
+    d1 = datetime.strptime(str(date), infmt) + relativedelta(**size)
+    d2 = d1.strftime(outfmt)
     return int(d2) if isinstance(date, int) else d2
 
 
+# may or may not be deprecated
 def isconsec(xs, size, fmt):
     """Tests if xs is consecutive calendrically, increasing order.
     """

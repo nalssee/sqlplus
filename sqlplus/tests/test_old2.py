@@ -7,7 +7,8 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
-from sqlplus import connect, Rows, Row, isnum, dconv, dmath, readxl
+from sqlplus import *
+from sqlplus.core import connect
 
 
 def pred1(r):
