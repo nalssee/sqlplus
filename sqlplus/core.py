@@ -13,6 +13,7 @@ import shutil
 import collections
 import locale 
 import psutil 
+from graphviz import Digraph
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from sas7bdat import SAS7BDAT
@@ -31,6 +32,7 @@ import statsmodels.api as sm
 # workspace will be deprecated
 WORKSPACE = ''
 DBNAME = 'workspace.db'
+GRAPH_NAME = 'workspace.gv'
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
@@ -945,6 +947,14 @@ def process(*jobs):
             graph[x] = list(graph[x])
         return graph
 
+    def render_graph(graph):
+        dot = Digraph()
+        for k, v in graph.items():
+            dot.node(k, k)
+            for v1 in v:
+                dot.edge(k, v1)
+        dot.render(GRAPH_NAME)
+
     required_tables = find_required_tables(jobs)
     with connect(DBNAME) as c:
         def delete_after(missing_table, paths):
@@ -979,6 +989,12 @@ def process(*jobs):
         assert len(dups) == 0, f"Dups: {dups}"
 
         graph = build_graph(jobs)
+
+        try:
+            render_graph(graph)
+        except Exception:
+            pass
+
         starting_points = [job.output for job in jobs if isinstance(job, Load)]
         paths = []
         for sp in starting_points:
