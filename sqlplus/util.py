@@ -9,50 +9,17 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def dconv(date, infmt, outfmt):
-    """Converts date format
-
-    Args:
-        |  date(int or str): 199912 or '1999DEC'
-        |  infmt(str): input format
-        |  outfmt(str): output format
-
-    Date format examples:
-        |  %Y, %m, %d, %b ...
-        |  https://docs.python.org/3/library/datetime.html
-
-    Returns str
-    """
-    return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
-
-
-def dmath(date, size, infmt, outfmt=None):
+def dmath(date, infmt, outfmt=None, **size):
     """Date arithmetic
-
-    Args:
-        |  date(int or str): 19991231 or "1999-12-31'
-        |  size: {'months': 3} 
-        |  fmt(str): date format
-
     Returns int if input(date) is int else str
     """
     outfmt = outfmt or infmt
     if not size:
-        return dconv(date, infmt, outfmt)
-
+        # Just convert the format
+        return datetime.strftime(datetime.strptime(str(date), infmt), outfmt)
     d1 = datetime.strptime(str(date), infmt) + relativedelta(**size)
     d2 = d1.strftime(outfmt)
     return int(d2) if isinstance(date, int) else d2
-
-
-# may or may not be deprecated
-def isconsec(xs, size, fmt):
-    """Tests if xs is consecutive calendrically, increasing order.
-    """
-    for x1, x2 in zip(xs, xs[1:]):
-        if dmath(x1, size, fmt) != x2:
-            return False
-    return True
 
 
 # If the return value is True it is converted to 1 or 0 in sqlite3

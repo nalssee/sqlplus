@@ -38,12 +38,12 @@ def overlap(xs, size, step=1):
 
 
 def month(r):
-    r.yyyymm = dmath(r.orderdate, {}, "%Y-%m-%d", "%Y-%m")
+    r.yyyymm = dmath(r.orderdate, "%Y-%m-%d", "%Y-%m")
     yield r
 
 
 def addmonth(date, n):
-    return dmath(date, {'months': n}, "%Y-%m")
+    return dmath(date, "%Y-%m", months=n)
 
 
 def cnt(rs, n):

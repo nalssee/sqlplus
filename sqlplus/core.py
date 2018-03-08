@@ -22,8 +22,7 @@ from itertools import groupby, islice, chain, tee, \
     zip_longest, accumulate, repeat
 from openpyxl import load_workbook
 
-from .util import isnum, _listify, _peek_first, \
-    _random_string, dmath, dconv
+from .util import isnum, _listify, _peek_first, _random_string
 
 # pandas raises warnings because maintainers of statsmodels are lazy
 warnings.filterwarnings('ignore')
@@ -398,8 +397,6 @@ class SQLPlus:
             |  cache_size(int)
             |  temp_store(int)
 
-        Additional Functions in SQL:
-            dconv, dmath, isnum
         """
         global WORKSPACE
 
