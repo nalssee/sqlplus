@@ -429,6 +429,16 @@ class SQLPlus:
         self._cursor.execute(f'PRAGMA temp_store={temp_store}')
         self._cursor.execute('PRAGMA journal_mode=OFF')
 
+    def rows(self, tname, cols=None, where=None, order=None):
+        """Returns Rows
+        """
+        return Rows(self.fetch(tname, cols, where, order))
+
+    def df(self, tname, cols=None, where=None, order=None):
+        """Returns pandas data frame
+        """
+        return self.rows(tname, cols, where, order).df(cols)
+
     def fetch(self, tname, cols=None, where=None,
               order=None, group=None, overlap=None):
         """Generates a sequence of rows from a table.
@@ -552,6 +562,8 @@ class SQLPlus:
             seq = (fn(r) for r in seq)
 
         self.insert(seq, name)
+
+
 
     def tocsv(self, tname, outfile=None, cols=None,
                where=None, order=None, encoding='utf-8'):
@@ -863,6 +875,19 @@ def drop(tables):
 def tocsv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
         c.tocsv(tname, outfile, cols, where, order, encoding)
+
+
+def describe(tname, cols=None, where=None, order=None, 
+             percentiles=None, include=None, exclude=None):
+    
+    def rows(tname, cols=None, where=None, order=None):
+        with connect(DBNAME) as c:
+            return Rows(c.fetch(tname, cols, where, order))
+
+    def df(tname, cols=None, where=None, order=None):
+        return rows(tname, cols, where, order).df(cols)
+    
+    return df(tname, cols, where, order).describe(percentiles, include, exclude)
 
 
 def process(*jobs):
