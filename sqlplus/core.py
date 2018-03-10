@@ -471,7 +471,7 @@ class SQLPlus:
         order = _listify(order) if order else []
         group = _listify(group) if group else []
 
-        order = group + order
+        order = group + order if group != ['*'] else order
 
         qry = _build_query(tname, cols, None, order)
         qrows = self.conn.cursor().execute(qry)
@@ -747,6 +747,10 @@ def _build_keyfn(key):
     if hasattr(key, '__call__'):
         return key
     colnames = _listify(key)
+    # special case
+    if colnames == ['*']:
+        return lambda r: 1 
+
     if len(colnames) == 1:
         col = colnames[0]
         return lambda r: r[col]
@@ -874,19 +878,6 @@ def drop(tables):
 def tocsv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
         c.tocsv(tname, outfile, cols, where, order, encoding)
-
-
-def describe(tname, cols=None, where=None, order=None, 
-             percentiles=None, include=None, exclude=None):
-    
-    def rows(tname, cols=None, where=None, order=None):
-        with connect(DBNAME) as c:
-            return Rows(c.fetch(tname, cols, where, order))
-
-    def df(tname, cols=None, where=None, order=None):
-        return rows(tname, cols, where, order).df(cols)
-    
-    return df(tname, cols, where, order).describe(percentiles, include, exclude)
 
 
 def process(*jobs):
@@ -1095,7 +1086,7 @@ def genfn(c, fn, arg, select, input):
         for rs in c.fetch(input, **select):
             try:
                 val = fn(rs, arg)
-                if isinstance(val, collections.Iterable):
+                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
                     yield from val 
                 else:
                     yield val
@@ -1108,7 +1099,7 @@ def genfn(c, fn, arg, select, input):
         for rs in c.fetch(input, **select):
             try:
                 val = fn(rs)
-                if isinstance(val, collections.Iterable):
+                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
                     yield from val
                 else:
                     yield val 

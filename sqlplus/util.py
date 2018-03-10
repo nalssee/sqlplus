@@ -7,6 +7,17 @@ from itertools import chain, zip_longest
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from functools import wraps
+
+
+def perr(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            yield from fn(*args, **kwargs)
+        except Exception as e:
+            print(e)
+    return wrapper
 
 
 def dmath(date, infmt, outfmt=None, **size):

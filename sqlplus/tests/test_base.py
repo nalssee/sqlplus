@@ -307,7 +307,6 @@ class TestMisc(unittest.TestCase):
         self.assertEqual(len(xs[0]), 31)
 
 
-
 if __name__ == "__main__":
     if os.path.exists('workspace.db'):
         os.remove('workspace.db')
@@ -326,7 +325,9 @@ if __name__ == "__main__":
         Map(cnt, 'orders2', group='yyyymm', overlap=6, arg=6, name='order_cnt'),
 
         Map(lambda r: r, 'orders2', name='orders3'),
-        Union('orders2, orders3', name='orders4')
+        Union('orders2, orders3', name='orders4'),
+
+        Map(lambda rs: rs, 'orders', group='*', name='orders_all')
 
     )
 
@@ -334,7 +335,7 @@ if __name__ == "__main__":
         assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 3)) == 6
         assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 6)) == 3
         assert len(allrows(c, 'orders2')) * 2 == len(allrows(c, 'orders4')) 
-
+        assert len(allrows(c, 'orders_all'))  == len(allrows(c, 'orders'))
 
     unittest.main()
 
