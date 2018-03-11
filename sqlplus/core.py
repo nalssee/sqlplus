@@ -32,7 +32,11 @@ import statsmodels.api as sm
 WORKSPACE = ''
 DBNAME = 'workspace.db'
 GRAPH_NAME = 'workspace.gv'
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
+if os.name == 'nt':
+    locale.setlocale( locale.LC_ALL, 'English_United States.1252' )
+else:
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 
 @contextmanager

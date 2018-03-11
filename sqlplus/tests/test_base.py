@@ -7,6 +7,7 @@ TESTPATH = os.path.dirname(os.path.realpath(__file__))
 PYPATH = os.path.join(TESTPATH, '..', '..')
 sys.path.append(PYPATH)
 
+
 from sqlplus import *
 from sqlplus.core import connect
 
