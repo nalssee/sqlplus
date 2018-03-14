@@ -203,6 +203,12 @@ class TestRows(unittest.TestCase):
 
 
 class TestConnection(unittest.TestCase):
+    def test_cols(self):
+        with connect(':memory:') as c:
+            c.load('products.csv')
+            for r in c.fetch('products', cols='CategoryID, price'):
+                self.assertEqual(r.columns, ['CategoryID', 'Price'])
+
     def test_avg_by_group(self):
         with connect('test.db') as c:
             c.load('products.csv')
@@ -328,8 +334,7 @@ if __name__ == "__main__":
         Map(lambda r: r, 'orders2', name='orders3'),
         Union('orders2, orders3', name='orders4'),
 
-        Map(lambda rs: rs, 'orders', group='*', name='orders_all')
-
+        Map(lambda rs: rs, 'orders', group='*', cols='customerid,orderdate', name='orders_all')
     )
 
     with connect('workspace.db') as c:

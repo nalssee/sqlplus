@@ -7,8 +7,8 @@ digraph {
 	customers [label=customers]
 	customers -> orders2
 	orders2 [label=orders2]
-	orders2 -> orders3
 	orders2 -> order_cnt
+	orders2 -> orders3
 	orders2 -> orders4
 	orders3 [label=orders3]
 	orders3 -> orders4
