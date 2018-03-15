@@ -534,7 +534,7 @@ class SQLPlus:
 
         self._cursor.execute(_create_statement(name, cols))
         istmt = _insert_statement(name, n)
-        self._cursor.executemany(istmt, (r.values for r in rs))
+        self._cursor.executemany(istmt, (r.values for r in rs if isinstance(r, Row)))
 
     def load(self, filename, name=None, encoding='utf-8', fn=None):
         """Read data file and save it on database
