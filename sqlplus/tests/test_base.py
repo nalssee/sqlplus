@@ -166,6 +166,12 @@ class TestRows(unittest.TestCase):
         xs = [x['a'] for x in rs.chunk([1, 3, 5], 'a')]
         self.assertEqual(xs, [[], [1], [3], [7, 7]])
 
+    def test_copy(self):
+        rs = Rows([Row(a=10), Row(a=20)])
+        rs1 = rs.copy()
+        rs1[0].a = 20 
+        self.assertEqual(rs[0].a, 10)
+
     def test_df(self):
         with connect(':memory:') as q:
             q.load('customers.csv')

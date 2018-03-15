@@ -90,7 +90,8 @@ class Row:
 
     def copy(self):
         # 
-        r0 = Row()
+        r0 = cp.copy(self)
+        r0.__init__()
         for c, v in zip(self.columns, self.values):
             r0[c] = v
         return r0   
@@ -477,7 +478,7 @@ class SQLPlus:
 
         order = group + order if group != ['*'] else order
 
-        qry = _build_query(tname, cols, None, order)
+        qry = _build_query(tname, cols, order)
         qrows = self.conn.cursor().execute(qry)
         columns = [c[0] for c in qrows.description]
         # there can't be duplicates in column names
@@ -565,7 +566,6 @@ class SQLPlus:
             seq = (fn(r) for r in seq)
 
         self.insert(seq, name)
-
 
 
     def tocsv(self, tname, outfile=None, cols=None,
@@ -782,12 +782,11 @@ def _insert_statement(name, ncol):
     return "insert into %s values (%s)" % (name, qmarks)
 
 
-def _build_query(tname, cols=None, where=None, order=None):
+def _build_query(tname, cols=None, order=None):
     "Build select statement"
     cols = ', '.join(_listify(cols)) if cols else '*'
-    where = 'where ' + where if where else ''
     order = 'order by ' + ', '.join(_listify(order)) if order else ''
-    return f'select {cols} from {tname} {where} {order}'
+    return f'select {cols} from {tname} {order}'
 
 
 def _build_row(qr, cols):
@@ -997,18 +996,18 @@ def process(*jobs):
 
         jobs_to_do = find_jobs_to_do(jobs)
         print(f"Starting Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f'To Create: {[j.output for j in jobs_to_do]}')
+        print(f'To Do: {[j.output for j in jobs_to_do]}')
         while jobs_to_do:
             cnt = 0
             for i, job in enumerate(jobs_to_do):
                 if is_doable(job):
                     job.run(c)
                     tm = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"Created: {job.output} at {tm}")
+                    print(f"Done: {job.output} at {tm}")
                     del jobs_to_do[i]
                     cnt += 1
             if cnt == 0:
-                print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
+                print(f'Failed to Do: {[j.output for j in jobs_to_do]}')
                 break
         
 
