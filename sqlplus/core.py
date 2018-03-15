@@ -865,7 +865,7 @@ def readxl(fname, sheet_name=None, encoding='utf-8'):
         if not sheet_name:
             sheet_name = workbook.sheetnames[0]
         for row in workbook[sheet_name].iter_rows():
-            yield [c.value or '' for c in row]
+            yield [c.value for c in row]
 
 
 def rename(old, new):
