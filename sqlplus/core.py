@@ -568,7 +568,7 @@ class SQLPlus:
         self.insert(seq, name)
 
     def tocsv(self, tname, outfile=None, cols=None,
-              where=None, order=None, encoding='utf-9'):
+              where=None, order=None, encoding='utf-8'):
         """Table to csv file
 
         Args:
