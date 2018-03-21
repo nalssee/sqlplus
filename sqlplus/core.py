@@ -5,14 +5,13 @@ import os
 import sqlite3
 import copy as cp
 import warnings
-import inspect
 import numpy as np
 import csv
 import pandas as pd
 import shutil
 import collections
-import locale 
-import psutil 
+import locale
+import psutil
 from graphviz import Digraph
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
@@ -34,7 +33,7 @@ DBNAME = 'workspace.db'
 GRAPH_NAME = 'workspace.gv'
 
 if os.name == 'nt':
-    locale.setlocale( locale.LC_ALL, 'English_United States.1252' )
+    locale.setlocale(locale.LC_ALL, 'English_United States.1252' )
 else:
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
@@ -534,7 +533,8 @@ class SQLPlus:
 
         self._cursor.execute(_create_statement(name, cols))
         istmt = _insert_statement(name, n)
-        self._cursor.executemany(istmt, (r.values for r in rs if isinstance(r, Row)))
+        self._cursor.executemany(istmt, 
+                                 (r.values for r in rs if isinstance(r, Row)))
 
     def load(self, filename, name=None, encoding='utf-8', fn=None):
         """Read data file and save it on database
@@ -567,9 +567,8 @@ class SQLPlus:
 
         self.insert(seq, name)
 
-
     def tocsv(self, tname, outfile=None, cols=None,
-               where=None, order=None, encoding='utf-8'):
+              where=None, order=None, encoding='utf-9'):
         """Table to csv file
 
         Args:
@@ -672,7 +671,8 @@ class SQLPlus:
             for c in cols:
                 if c.endswith('.*'):
                     t0 = tinfos[i][0]
-                    allcols += [t1 + '.' + c1 for c1 in self._cols(f'select * from {t0}')]
+                    allcols += [t1 + '.' + c1 
+                                for c1 in self._cols(f'select * from {t0}')]
                 else:
                     allcols.append(c)
 
@@ -692,10 +692,12 @@ class SQLPlus:
         tname = query.split()[idx + 1]
         name = name or tname
         try:
-            self._cursor.execute(_create_statement(temp_name, self._cols(query)))
+            self._cursor.execute(
+                _create_statement(temp_name, self._cols(query)))
             self._cursor.execute(f'insert into {temp_name} {query}')
             self._cursor.execute(f'drop table if exists { name }')
-            self._cursor.execute(f"alter table { temp_name } rename to { name }")
+            self._cursor.execute(
+                f"alter table { temp_name } rename to { name }")
         finally:
             self._cursor.execute(f'drop table if exists { temp_name }')
 
@@ -710,7 +712,8 @@ class SQLPlus:
                 shutil.copyfile(os.path.join(WORKSPACE, tempdbs[0]),
                                 os.path.join(WORKSPACE, tempdb))
 
-            with ProcessPoolExecutor(max_workers=psutil.cpu_count(logical=False)) as exe:
+            with ProcessPoolExecutor(
+              max_workers=psutil.cpu_count(logical=False)) as exe:
                 exe.map(fn, tempdbs, args)
 
             with connect(tempdbs[0]) as c:
@@ -741,7 +744,8 @@ class SQLPlus:
 
     def _pkeys(self, tname):
         "Primary keys in order"
-        pks = [r for r in self._cursor.execute(f'pragma table_info({tname})') if r[5]]
+        pks = [r for r in self._cursor.execute(
+            f'pragma table_info({tname})') if r[5]]
         return [r[1] for r in sorted(pks, key=lambda r: r[5])]
 
 
@@ -760,6 +764,7 @@ def _build_keyfn(key):
         return lambda r: r[col]
     else:
         return lambda r: [r[colname] for colname in colnames]
+
 
 # primary keys are too much for non-experts
 def _create_statement(name, colnames):
@@ -852,7 +857,7 @@ def readxl(fname, sheet_name=None, encoding='utf-8'):
         except ValueError:
             try:
                 return locale.atof(x)
-            except:
+            except Exception:
                 return x
 
     fname = os.path.join(WORKSPACE, fname)
@@ -878,7 +883,8 @@ def drop(tables):
         c.drop(tables)
 
  
-def tocsv(tname, outfile=None, cols=None, where=None, order=None, encoding='utf-8'):
+def tocsv(tname, outfile=None, cols=None, 
+          where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
         c.tocsv(tname, outfile, cols, where, order, encoding)
 
@@ -1089,7 +1095,8 @@ def genfn(c, fn, arg, select, input):
         for rs in c.fetch(input, **select):
             try:
                 val = fn(rs, arg)
-                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
+                if isinstance(
+                  val, collections.Iterable) or isinstance(val, Rows):
                     yield from val 
                 else:
                     yield val
@@ -1102,7 +1109,8 @@ def genfn(c, fn, arg, select, input):
         for rs in c.fetch(input, **select):
             try:
                 val = fn(rs)
-                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
+                if isinstance(
+                  val, collections.Iterable) or isinstance(val, Rows):
                     yield from val
                 else:
                     yield val 
@@ -1152,4 +1160,5 @@ class Map:
         """
 
     def run(self, conn):
-        conn.insert(genfn(conn, self.fn, self.arg, self.select, self.inputs[0]), self.output)
+        conn.insert(genfn(conn, self.fn, self.arg, 
+                          self.select, self.inputs[0]), self.output)
