@@ -324,8 +324,8 @@ class TestMisc(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if os.path.exists('workspace.db'):
-        os.remove('workspace.db')
+    if os.path.exists('test_base.db'):
+        os.remove('test_base.db')
     process(
         Load('orders.csv'),
         # same as Load('orders.csv', name='orders')
@@ -345,11 +345,9 @@ if __name__ == "__main__":
 
         Map(lambda r: r, 'orders', group='*', cols='customerid,orderdate', 
             name='orders_all')
-
-
     )
 
-    with connect('workspace.db') as c:
+    with connect('test_base.db') as c:
         assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 3)) == 6
         assert len(allrows(c, 'order_cnt').where(lambda r: r.n == 6)) == 3
         assert len(allrows(c, 'orders2')) * 2 == len(allrows(c, 'orders4')) 

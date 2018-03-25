@@ -2,6 +2,7 @@
 Utils for statistical analysis using sqlite3 engine
 """
 import os
+import sys
 import sqlite3
 import copy as cp
 import warnings
@@ -29,11 +30,12 @@ import statsmodels.api as sm
 
 # workspace will be deprecated
 WORKSPACE = ''
-DBNAME = 'workspace.db'
-GRAPH_NAME = 'workspace.gv'
+filename, _ = os.path.splitext(os.path.basename(sys.argv[0])) 
+DBNAME = filename + '.db' 
+GRAPH_NAME = filename + '.gv'
 
 if os.name == 'nt':
-    locale.setlocale(locale.LC_ALL, 'English_United States.1252' )
+    locale.setlocale(locale.LC_ALL, 'English_United States.1252')
 else:
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
