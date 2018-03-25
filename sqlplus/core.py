@@ -948,8 +948,12 @@ def process(*jobs):
         dot = Digraph()
         for k, v in graph.items():
             dot.node(k, k)
-            for v1 in v:
-                dot.edge(k, v1)
+            if k != v:
+                for v1 in v:
+                    dot.edge(k, v1)
+        for job in jobs:
+            if isinstance(job, Load):
+                dot.node(job.output, job.output)
         dot.render(GRAPH_NAME)
 
     required_tables = find_required_tables(jobs)
@@ -1002,18 +1006,23 @@ def process(*jobs):
 
         jobs_to_do = find_jobs_to_do(jobs)
         print(f"Starting Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f'To Do: {[j.output for j in jobs_to_do]}')
+        print(f'To Create: {[j.output for j in jobs_to_do]}')
         while jobs_to_do:
             cnt = 0
             for i, job in enumerate(jobs_to_do):
                 if is_doable(job):
                     job.run(c)
                     tm = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"Done: {job.output} at {tm}")
+
+                    if job.output in c.get_tables():
+                        print(f"Created: {job.output} at {tm}")
+                    else:
+                        print(f"Failed: {job.output} at {tm}")
+
                     del jobs_to_do[i]
                     cnt += 1
             if cnt == 0:
-                print(f'Failed to Do: {[j.output for j in jobs_to_do]}')
+                print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
                 break
         
 

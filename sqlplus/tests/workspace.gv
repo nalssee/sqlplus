@@ -12,4 +12,6 @@ digraph {
 	orders2 -> order_cnt
 	orders3 [label=orders3]
 	orders3 -> orders4
+	orders [label=orders]
+	customers [label=customers]
 }
