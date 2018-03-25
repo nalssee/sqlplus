@@ -1116,6 +1116,8 @@ def genfn(c, fn, arg, select, input):
     else:
         if isinstance(fn, dict):
             fn = add(**fn)
+        if not hasattr(fn, '__call__'):
+            raise ValueError('Invalid type: ', fn)
 
         for rs in c.fetch(input, **select):
             try:
