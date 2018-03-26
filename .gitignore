@@ -9,3 +9,5 @@ build/
 .idea/
 venv/
 *.db
+**/*.gv
+**/*.gv.pdf

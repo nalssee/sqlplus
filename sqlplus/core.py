@@ -1159,9 +1159,14 @@ class Map:
         self.select = {}
         self.arg = None
 
+        # if output name is not defined fn nmae is used.
+        if hasattr(fn, '__call__'):
+            self.output = fn.__name__
+        
         for k, v in kwargs.items():
             if k.upper() == "ARG":
                 self.arg = v
+            # overwrite it if exists
             elif k.upper() == "NAME":
                 self.output = v
             else:
