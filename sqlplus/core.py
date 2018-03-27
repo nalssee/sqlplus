@@ -491,8 +491,12 @@ class SQLPlus:
             def gen():
                 for r in qrows:
                     r0 = _build_row(r, columns)
-                    if where(r0):
-                        yield r0
+                    try:
+                        if where(r0):
+                            yield r0
+                    except Exception:
+                        pass
+
             rows = gen()
         else:
             rows = (_build_row(r, columns) for r in qrows)
@@ -635,17 +639,20 @@ class SQLPlus:
 
                 def gen():
                     for r in self.fetch(tname):
-                        vals = mcols(r)
-                        if not newmcols:
-                            for v in vals:
-                                if (v == 0 or v):
-                                    nc = 'col' + _random_string(10)
-                                    newmcols.append(nc)
-                                else:
-                                    newmcols.append('')
-                        for c, v in zip(newmcols, vals):
-                            r[c] = v
-                        yield r
+                        try:
+                            vals = mcols(r)
+                            if not newmcols:
+                                for v in vals:
+                                    if (v == 0 or v):
+                                        nc = 'col' + _random_string(10)
+                                        newmcols.append(nc)
+                                    else:
+                                        newmcols.append('')
+                            for c, v in zip(newmcols, vals):
+                                r[c] = v
+                            yield r
+                        except Exception:
+                            pass
 
                 self.insert(gen(), newtable)
                 tinfos1.append([newtable, newcols, newmcols])
@@ -1017,7 +1024,7 @@ def process(*jobs):
                         print(f"Created: {job.output} at {tm}")
                     else:
                         print(f"Failed: {job.output} at {tm}")
-
+                        return
                     del jobs_to_do[i]
                     cnt += 1
             if cnt == 0:
@@ -1028,7 +1035,10 @@ def process(*jobs):
 def add(**kwargs):
     def fn(r):
         for k, v in kwargs.items():
-            r[k] = v(r)
+            try:
+                r[k] = v(r)
+            except Exception:
+                r[k] = ''
         return r
     return fn
 
@@ -1097,13 +1107,14 @@ def buildfn(dbfile, argset):
 def genfn(c, fn, arg, select, input):
     if arg:
         for rs in c.fetch(input, **select):
-            val = fn(rs, arg)
-            if isinstance(
-                val, collections.Iterable) or isinstance(val, Rows):
-                yield from val
-            else:
-                yield val
-
+            try:
+                val = fn(rs, arg)
+                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
+                    yield from val
+                else:
+                    yield val
+            except Exception:
+                pass
     else:
         if isinstance(fn, dict):
             fn = add(**fn)
@@ -1111,12 +1122,14 @@ def genfn(c, fn, arg, select, input):
             raise ValueError('Invalid type: ', fn)
 
         for rs in c.fetch(input, **select):
-            val = fn(rs)
-            if isinstance(
-                val, collections.Iterable) or isinstance(val, Rows):
-                yield from val
-            else:
-                yield val
+            try:
+                val = fn(rs)
+                if isinstance(val, collections.Iterable) or isinstance(val, Rows):
+                    yield from val
+                else:
+                    yield val
+            except Exception:
+                pass
 
 # This is for parallel work
 class Parallel:
