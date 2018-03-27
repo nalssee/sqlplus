@@ -30,8 +30,8 @@ import statsmodels.api as sm
 
 # workspace will be deprecated
 WORKSPACE = ''
-filename, _ = os.path.splitext(os.path.basename(sys.argv[0])) 
-DBNAME = filename + '.db' 
+filename, _ = os.path.splitext(os.path.basename(sys.argv[0]))
+DBNAME = filename + '.db'
 GRAPH_NAME = filename + '.gv'
 
 if os.name == 'nt':
@@ -90,13 +90,13 @@ class Row:
         return list(self._dict.values())
 
     def copy(self):
-        # 
+        #
         r0 = cp.copy(self)
         r0.__init__()
         for c, v in zip(self.columns, self.values):
             r0[c] = v
-        return r0   
- 
+        return r0
+
     def __getattr__(self, name):
         return self._dict[name]
 
@@ -362,7 +362,8 @@ class Rows:
         # n is a list of percentiles
         elif not col:
             # then it is a list of percentiles for each chunk
-            assert sum(n) <= 1, f"Sum of percentils for chunks must be <= 1.0"
+            if sum(n) > 1:
+                raise ValueError(f"Sum of percentils for chunks must be <= 1.0")
             ns = [int(x * size) for x in accumulate(n)]
             result = []
             for a, b in zip([0] + ns, ns):
@@ -490,11 +491,8 @@ class SQLPlus:
             def gen():
                 for r in qrows:
                     r0 = _build_row(r, columns)
-                    try:
-                        if where(r0):
-                            yield r0
-                    except Exception:
-                        pass
+                    if where(r0):
+                        yield r0
             rows = gen()
         else:
             rows = (_build_row(r, columns) for r in qrows)
@@ -535,7 +533,7 @@ class SQLPlus:
 
         self._cursor.execute(_create_statement(name, cols))
         istmt = _insert_statement(name, n)
-        self._cursor.executemany(istmt, 
+        self._cursor.executemany(istmt,
                                  (r.values for r in rs if isinstance(r, Row)))
 
     def load(self, filename, name=None, encoding='utf-8', fn=None):
@@ -637,20 +635,18 @@ class SQLPlus:
 
                 def gen():
                     for r in self.fetch(tname):
-                        try:
-                            vals = mcols(r)
-                            if not newmcols:
-                                for v in vals:
-                                    if (v == 0 or v):
-                                        nc = 'col' + _random_string(10)
-                                        newmcols.append(nc)
-                                    else:
-                                        newmcols.append('')
-                            for c, v in zip(newmcols, vals):
-                                r[c] = v
-                            yield r
-                        except Exception:
-                            pass
+                        vals = mcols(r)
+                        if not newmcols:
+                            for v in vals:
+                                if (v == 0 or v):
+                                    nc = 'col' + _random_string(10)
+                                    newmcols.append(nc)
+                                else:
+                                    newmcols.append('')
+                        for c, v in zip(newmcols, vals):
+                            r[c] = v
+                        yield r
+
                 self.insert(gen(), newtable)
                 tinfos1.append([newtable, newcols, newmcols])
                 temp_tables.append(newtable)
@@ -673,7 +669,7 @@ class SQLPlus:
             for c in cols:
                 if c.endswith('.*'):
                     t0 = tinfos[i][0]
-                    allcols += [t1 + '.' + c1 
+                    allcols += [t1 + '.' + c1
                                 for c1 in self._cols(f'select * from {t0}')]
                 else:
                     allcols.append(c)
@@ -759,7 +755,7 @@ def _build_keyfn(key):
     colnames = _listify(key)
     # special case
     if colnames == ['*']:
-        return lambda r: 1 
+        return lambda r: 1
 
     if len(colnames) == 1:
         col = colnames[0]
@@ -884,8 +880,8 @@ def drop(tables):
     with connect(DBNAME) as c:
         c.drop(tables)
 
- 
-def tocsv(tname, outfile=None, cols=None, 
+
+def tocsv(tname, outfile=None, cols=None,
           where=None, order=None, encoding='utf-8'):
     with connect(DBNAME) as c:
         c.tocsv(tname, outfile, cols, where, order, encoding)
@@ -989,7 +985,8 @@ def process(*jobs):
 
         outputs = [job.output for job in jobs]
         dups = set(x for x in outputs if outputs.count(x) > 1)
-        assert len(dups) == 0, f"Dups: {dups}"
+        if len(dups) != 0:
+            raise ValueError(f"Dups: {dups}")
 
         graph = build_graph(jobs)
 
@@ -1026,20 +1023,17 @@ def process(*jobs):
             if cnt == 0:
                 print(f'Failed to Create: {[j.output for j in jobs_to_do]}')
                 break
-        
+
 
 def add(**kwargs):
     def fn(r):
         for k, v in kwargs.items():
-            try:
-                r[k] = v(r)
-            except Exception:
-                r[k] = ''
+            r[k] = v(r)
         return r
     return fn
 
 
-# They don't know pkeys, Just ignore it 
+# They don't know pkeys, Just ignore it
 class Load:
     def __init__(self, filename, name=None, encoding='utf-8', fn=None):
         fname, ext = None, None
@@ -1051,7 +1045,8 @@ class Load:
         self.fn = fn
 
         self.output = name or fname
-        assert self.output is not None, "Table name must be provided"
+        if self.output is None:
+            raise ValueError("Table name must be provided")
         self.inputs = []
 
     def run(self, conn):
@@ -1066,16 +1061,15 @@ class Load:
 class Union:
     def __init__(self, tables, name=None):
         self.inputs = _listify(tables)
-        self.output = name 
-        assert self.output not in self.inputs, """
-        Output table name is one of the input table names
-        """
+        self.output = name
+        if self.output in self.inputs:
+            raise ValueError("Output table name is one of the input table names")
 
     def run(self, conn):
         def gen():
             for input in self.inputs:
                 for r in conn.fetch(input):
-                    yield r 
+                    yield r
         conn.insert(gen(), self.output)
 
 
@@ -1086,9 +1080,8 @@ class Join:
 
         self.output = name or tinfos[0][0]
         self.inputs = [tinfo[0] for tinfo in tinfos]
-        assert self.output not in self.inputs, """
-        Output table name is one of the input table names
-        """
+        if self.output in self.inputs:
+            raise ValueError("Output table name is one of the input table names")
 
     def run(self, conn):
         conn.join(*self.tinfos, name=self.name)
@@ -1104,15 +1097,13 @@ def buildfn(dbfile, argset):
 def genfn(c, fn, arg, select, input):
     if arg:
         for rs in c.fetch(input, **select):
-            try:
-                val = fn(rs, arg)
-                if isinstance(
-                  val, collections.Iterable) or isinstance(val, Rows):
-                    yield from val 
-                else:
-                    yield val
-            except Exception:
-                pass
+            val = fn(rs, arg)
+            if isinstance(
+                val, collections.Iterable) or isinstance(val, Rows):
+                yield from val
+            else:
+                yield val
+
     else:
         if isinstance(fn, dict):
             fn = add(**fn)
@@ -1120,16 +1111,12 @@ def genfn(c, fn, arg, select, input):
             raise ValueError('Invalid type: ', fn)
 
         for rs in c.fetch(input, **select):
-            try:
-                val = fn(rs)
-                if isinstance(
-                  val, collections.Iterable) or isinstance(val, Rows):
-                    yield from val
-                else:
-                    yield val 
-            except Exception:
-                pass
-
+            val = fn(rs)
+            if isinstance(
+                val, collections.Iterable) or isinstance(val, Rows):
+                yield from val
+            else:
+                yield val
 
 # This is for parallel work
 class Parallel:
@@ -1140,9 +1127,8 @@ class Parallel:
 
         self.inputs = [input]
         self.output = output
-        assert self.inputs[0] != self.output, """
-        Input and output table name must not be equal
-        """
+        if self.inputs[0] == self.output:
+            raise ValueError("Input and output table name must not be equal")
 
     def run(self, conn):
         conn.pwork(buildfn, self.inputs[0],
@@ -1162,7 +1148,7 @@ class Map:
         # if output name is not defined fn nmae is used.
         if hasattr(fn, '__call__'):
             self.output = fn.__name__
-        
+
         for k, v in kwargs.items():
             if k.upper() == "ARG":
                 self.arg = v
@@ -1173,10 +1159,9 @@ class Map:
                 self.select[k] = v
 
         self.inputs = [input]
-        assert self.inputs[0] != self.output, """
-        Input and output table name must not be equal
-        """
+        if self.inputs[0] == self.output:
+            raise ValueError("Input and output table name must not be equal")
 
     def run(self, conn):
-        conn.insert(genfn(conn, self.fn, self.arg, 
+        conn.insert(genfn(conn, self.fn, self.arg,
                           self.select, self.inputs[0]), self.output)
