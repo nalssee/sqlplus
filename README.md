@@ -1,6 +1,3 @@
-# sqlplus
->
-> Sometimes you need more than just SQL especially when you handle large datasets
+Data analysis with no hassle of learning pandas or sql
 
->
->[Documentation](https://rawgit.com/nalssee/sqlplus/master/_build/html/index.html)
+[DOCS] (https://sqlplus.readthedocs.io/en/latest/)
